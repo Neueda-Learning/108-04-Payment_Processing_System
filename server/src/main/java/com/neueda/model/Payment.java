@@ -1,7 +1,5 @@
 package com.neueda.model;
 
-
-
 public class Payment {
 
     private Long id;
