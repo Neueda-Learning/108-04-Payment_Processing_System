@@ -1,11 +1,12 @@
 package com.neueda.model;
 
 
+import java.math.BigDecimal;
 
 public class Payment {
 
     private Long id;
-    private Double amount;
+    private BigDecimal amount;
     private String currency;
     private String status;
     private String sourceAccount;
@@ -16,7 +17,7 @@ public class Payment {
     public Payment() {}
 
     // Full constructor
-    public Payment(Long id, Double amount, String currency, String status,
+    public Payment(Long id, BigDecimal amount, String currency, String status,
                    String sourceAccount, String destinationAccount, String idempotencyKey) {
         this.id = id;
         this.amount = amount;
@@ -36,11 +37,11 @@ public class Payment {
         this.id = id;
     }
 
-    public Double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(Double amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 

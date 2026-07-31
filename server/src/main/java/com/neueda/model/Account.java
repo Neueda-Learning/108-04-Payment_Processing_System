@@ -1,11 +1,13 @@
 package com.neueda.model;
 
+import java.math.BigDecimal;
+
 public class Account {
 
     private Long id;
     private String accountNumber;
     private String accountHolderName;
-    private Double balance;
+    private BigDecimal balance;
     private String status;   // ACTIVE, INACTIVE, BLOCKED
 
     // Empty constructor (required for frameworks)
@@ -13,7 +15,7 @@ public class Account {
 
     // Full constructor
     public Account(Long id, String accountNumber, String accountHolderName,
-                   Double balance, String status) {
+                   BigDecimal balance, String status) {
         this.id = id;
         this.accountNumber = accountNumber;
         this.accountHolderName = accountHolderName;
@@ -46,11 +48,11 @@ public class Account {
         this.accountHolderName = accountHolderName;
     }
 
-    public Double getBalance() {
+    public BigDecimal getBalance() {
         return balance;
     }
 
-    public void setBalance(Double balance) {
+    public void setBalance(BigDecimal balance) {
         this.balance = balance;
     }
 
