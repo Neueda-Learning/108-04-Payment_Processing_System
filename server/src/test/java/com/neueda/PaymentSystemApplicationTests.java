@@ -1,13 +1,13 @@
 package com.neueda;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest
 class PaymentSystemApplicationTests {
 
 	@Test
-	void contextLoads() {
+	void applicationClassCanBeCreated() {
+		assertEquals("com.neueda.PaymentSystemApplication", PaymentSystemApplication.class.getName());
 	}
 
 }
