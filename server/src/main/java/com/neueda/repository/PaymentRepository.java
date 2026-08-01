@@ -1,88 +1,15 @@
 package com.neueda.repository;
 
-import com.neueda.model.Payment;
-import org.springframework.jdbc.core.*;
-import org.springframework.jdbc.support.*;
-import org.springframework.stereotype.Repository;
-
-import java.sql.*;
 import java.util.*;
+import com.neueda.model.Payment;
 
+public interface PaymentRepositoryInterface {
+        Payment save(Payment payment);
 
-@Repository
-public class PaymentRepository implements PaymentRepositoryInterface {
-    private final JdbcTemplate jdbc;
+        Optional<Payment> findById(Long id);
 
-    public PaymentRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
-    }
+        List<Payment> findAll();
 
-
-    private RowMapper<Payment> getRowMapper() {
-        return (resultset, rowNum) -> new Payment(
-                resultset.getLong("id"),
-                resultset.getBigDecimal("amount"),
-                resultset.getString("status"),
-                resultset.getString("source_account"),
-                resultset.getString("destination_account"),
-                resultset.getString("idempotency_key")
-        );
-    }
-
-    public Payment save(Payment payment) {
-        String sql =
-        """
-        INSERT INTO payments
-        (
-            amount,
-            status,
-            source_account,
-            destination_account,
-            idempotency_key
-        )
-        VALUES(?,?,?,?,?)
-        """;
-
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbc.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setBigDecimal(1, payment.getAmount());
-            ps.setString(2, payment.getStatus());
-            ps.setString(3, payment.getSourceAccount());
-            ps.setString(4, payment.getDestinationAccount());
-            ps.setString(5, payment.getIdempotencyKey());
-            return ps;
-        }, keyHolder);
-        if(keyHolder.getKey()!=null){
-            payment.setId(keyHolder.getKey().longValue());
-        }
-
-        return payment;
-    }
-
-    public Optional<Payment> findById(Long id) {
-        String sql = "SELECT * FROM payments WHERE id = ?";
-        List<Payment> payments = jdbc.query(sql, getRowMapper(), id);
-        if (payments.isEmpty()) {
-            return Optional.empty();
-        } else {
-            return Optional.of(payments.get(0));   
-        }
-    }
-
-    public List<Payment> findAll() {
-        String sql = "SELECT * FROM payments";
-        return jdbc.query(sql, getRowMapper());
-    }
-
-    public Optional<Payment> findByIdempotencyKey(String key) {
-        String sql = "SELECT * FROM payments WHERE idempotency_key = ?";
-        List<Payment> payments = jdbc.query(sql, getRowMapper(), key);
-        if (payments.isEmpty()) {
-            return Optional.empty();
-        } else {
-            return Optional.of(payments.get(0));
-        }
-    }
-   
+        Optional<Payment> findByIdempotencyKey(String key);
+    
 }
