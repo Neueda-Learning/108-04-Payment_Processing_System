@@ -10,7 +10,7 @@ import java.util.*;
 
 
 @Repository
-public class PaymentRepositoryImplementation implements PaymentRepositoryInterface {
+public class PaymentRepositoryImplementation implements PaymentRepository {
     private final JdbcTemplate jdbc;
 
     public PaymentRepositoryImplementation(JdbcTemplate jdbc) {
