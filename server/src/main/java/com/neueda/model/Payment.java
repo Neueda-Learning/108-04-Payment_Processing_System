@@ -6,7 +6,6 @@ public class Payment {
 
     private Long id;
     private BigDecimal amount;
-    private String currency;
     private String status;
     private String sourceAccount;
     private String destinationAccount;
@@ -16,11 +15,10 @@ public class Payment {
     public Payment() {}
 
     // Full constructor
-    public Payment(Long id, BigDecimal amount, String currency, String status,
+    public Payment(Long id, BigDecimal amount, String status,
                    String sourceAccount, String destinationAccount, String idempotencyKey) {
         this.id = id;
         this.amount = amount;
-        this.currency = currency;
         this.status = status;
         this.sourceAccount = sourceAccount;
         this.destinationAccount = destinationAccount;
@@ -42,14 +40,6 @@ public class Payment {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
     }
 
     public String getStatus() {

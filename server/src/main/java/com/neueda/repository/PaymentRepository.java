@@ -22,7 +22,6 @@ public class PaymentRepository implements PaymentRepositoryInterface {
         return (resultset, rowNum) -> new Payment(
                 resultset.getLong("id"),
                 resultset.getBigDecimal("amount"),
-                resultset.getString("currency"),
                 resultset.getString("status"),
                 resultset.getString("source_account"),
                 resultset.getString("destination_account"),
@@ -36,24 +35,22 @@ public class PaymentRepository implements PaymentRepositoryInterface {
         INSERT INTO payments
         (
             amount,
-            currency,
             status,
             source_account,
             destination_account,
             idempotency_key
         )
-        VALUES(?,?,?,?,?,?)
+        VALUES(?,?,?,?,?)
         """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setBigDecimal(1, payment.getAmount());
-            ps.setString(2, payment.getCurrency());
-            ps.setString(3, payment.getStatus());
-            ps.setString(4, payment.getSourceAccount());
-            ps.setString(5, payment.getDestinationAccount());
-            ps.setString(6, payment.getIdempotencyKey());
+            ps.setString(2, payment.getStatus());
+            ps.setString(3, payment.getSourceAccount());
+            ps.setString(4, payment.getDestinationAccount());
+            ps.setString(5, payment.getIdempotencyKey());
             return ps;
         }, keyHolder);
         if(keyHolder.getKey()!=null){
