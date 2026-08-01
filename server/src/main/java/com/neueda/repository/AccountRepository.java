@@ -9,10 +9,10 @@ import java.sql.*;
 import java.util.*;
 
 @Repository
-public class AmountRepository implements AmountRepositoryInterface {
+public class AccountRepository implements AccountRepositoryInterface {
     private final JdbcTemplate jdbc;
 
-    public AmountRepository(JdbcTemplate jdbc) {
+    public AccountRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
@@ -21,6 +21,7 @@ public class AmountRepository implements AmountRepositoryInterface {
                 rs.getLong("id"),
                 rs.getString("account_number"),
                 rs.getString("account_holder_name"),
+                rs.getString("account_currency_type"),
                 rs.getBigDecimal("balance"),
                 rs.getString("status")
 
@@ -35,10 +36,11 @@ public class AmountRepository implements AmountRepositoryInterface {
             account_number,
             account_holder_name,
             balance,
+            account_currency_type,
             status
         )
 
-        VALUES(?,?,?,?)
+        VALUES(?,?,?,?,?)
         """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -47,7 +49,8 @@ public class AmountRepository implements AmountRepositoryInterface {
             ps.setString(1,account.getAccountNumber());
             ps.setString(2,account.getAccountHolderName());
             ps.setBigDecimal(3,account.getBalance());
-            ps.setString(4,account.getStatus());
+            ps.setString(4,account.getAccountCurrencyType());
+            ps.setString(5,account.getStatus());
             return ps;
         }, keyHolder);
         if(keyHolder.getKey()!=null){

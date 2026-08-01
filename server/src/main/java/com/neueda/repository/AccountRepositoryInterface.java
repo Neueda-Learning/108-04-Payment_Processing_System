@@ -4,7 +4,7 @@ import java.util.*;
 
 import com.neueda.model.Account;
 
-public interface AmountRepositoryInterface {
+public interface AccountRepositoryInterface {
     Account save(Account account);
 
     Optional<Account> findById(Long id);
