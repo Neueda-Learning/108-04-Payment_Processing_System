@@ -1,0 +1,102 @@
+[
+  {
+    "id": "status-created",
+    "question": "What does CREATED status mean?",
+    "content": "CREATED means the payment has been submitted but not yet validated. This is the first stage in the lifecycle."
+  },
+  {
+    "id": "status-validated",
+    "question": "What does VALIDATED status mean?",
+    "content": "VALIDATED means the payment has passed all validation rules (amount, account, currency checks) and is ready to be sent."
+  },
+  {
+    "id": "status-sent",
+    "question": "What does SENT status mean?",
+    "content": "SENT means the payment has been transmitted to the destination system and is awaiting confirmation."
+  },
+  {
+    "id": "status-completed",
+    "question": "What does COMPLETED status mean?",
+    "content": "COMPLETED means the payment has been successfully processed and confirmed. This is a final status."
+  },
+  {
+    "id": "status-failed",
+    "question": "What does FAILED status mean?",
+    "content": "FAILED means the payment failed at some point in the process. It will have an associated error code explaining why."
+  },
+  {
+    "id": "status-transitions",
+    "question": "Can a payment go back to a previous status?",
+    "content": "No. Valid transitions only move forward: CREATED to VALIDATED, VALIDATED to SENT, SENT to COMPLETED, and any stage can move to FAILED. A payment cannot move backward, for example from COMPLETED to CREATED."
+  },
+  {
+    "id": "error-validation-failed",
+    "question": "What does VALIDATION_FAILED mean?",
+    "content": "VALIDATION_FAILED means the payment did not pass one or more validation checks, such as amount, account, or currency rules."
+  },
+  {
+    "id": "error-insufficient-funds",
+    "question": "What does INSUFFICIENT_FUNDS mean?",
+    "content": "INSUFFICIENT_FUNDS means the source account does not have enough balance to cover the payment amount."
+  },
+  {
+    "id": "error-invalid-account",
+    "question": "What does INVALID_ACCOUNT mean?",
+    "content": "INVALID_ACCOUNT means the account number provided is invalid or does not exist in the system."
+  },
+  {
+    "id": "error-invalid-currency",
+    "question": "What does INVALID_CURRENCY mean, and what currencies are supported?",
+    "content": "INVALID_CURRENCY means the currency code provided is not a supported ISO 4217 code, such as USD, EUR, or GBP."
+  },
+  {
+    "id": "error-invalid-amount",
+    "question": "What does INVALID_AMOUNT mean, and what's the maximum payment amount?",
+    "content": "INVALID_AMOUNT means the amount is zero, negative, has too many decimal places, or exceeds the maximum allowed limit."
+  },
+  {
+    "id": "error-duplicate-payment",
+    "question": "What happens if I submit the same payment twice?",
+    "content": "If a payment is submitted twice with the same idempotency key, the system detects it as a DUPLICATE_PAYMENT and returns the existing payment instead of creating a new one."
+  },
+  {
+    "id": "error-invalid-transition",
+    "question": "Why am I getting an invalid status transition error?",
+    "content": "INVALID_STATUS_TRANSITION means you tried to move a payment to a status that isn't allowed from its current status, for example trying to move a COMPLETED payment back to SENT."
+  },
+  {
+    "id": "error-payment-not-found",
+    "question": "Why does it say payment not found?",
+    "content": "PAYMENT_NOT_FOUND means the payment ID you're looking up does not exist in the system."
+  },
+  {
+    "id": "howto-create",
+    "question": "How do I create a new payment?",
+    "content": "Use the Create Payment screen to enter the source account, destination account, amount, currency, and an optional reference, then submit. The payment will start in CREATED status."
+  },
+  {
+    "id": "howto-filter",
+    "question": "How do I filter or search payments?",
+    "content": "Use the status filter dropdown or tabs on the payment list to filter by status, or use the search bar to find a payment by ID or reference."
+  },
+  {
+    "id": "howto-history",
+    "question": "How do I see the full history of a payment?",
+    "content": "Open the payment details screen and view the status history timeline, which shows every status transition with its timestamp."
+  },
+  {
+    "id": "howto-cancel",
+    "question": "Can I cancel a payment?",
+    "content": "Whether a payment can be cancelled depends on its current status. Once a payment reaches COMPLETED, it generally cannot be cancelled, only reversed."
+  },
+  {
+    "id": "faq-off-peak-times",
+    "question": "When does the bank do the least amount of transactions?",
+    "content": "Transaction volume varies over time. Check the Volume Over Time chart on the dashboard for up-to-date activity trends rather than a fixed answer here."
+  },
+  {
+    "id": "faq-multi-currency",
+    "question": "Can I pay in other currencies?",
+    "content": "Yes, payments can be made in other supported currencies, such as USD, EUR, or GBP. Select your desired currency when creating the payment."
+  }
+]
