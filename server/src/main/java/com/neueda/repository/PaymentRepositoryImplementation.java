@@ -84,9 +84,18 @@ public class PaymentRepositoryImplementation implements PaymentRepository {
         }
 
         Map<String, Object> keys = keyHolder.getKeyList().getFirst();
-        Object idValue = keys.get("ID");
+        Object idValue = keys.get("id");
+        if (idValue == null) {
+            idValue = keys.get("ID");
+        }
         if (idValue instanceof Number number) {
             return number;
+        }
+
+        for (Object value : keys.values()) {
+            if (value instanceof Number number) {
+                return number;
+            }
         }
 
         return keyHolder.getKey();
