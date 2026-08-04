@@ -7,11 +7,16 @@ Handles the call to Gemini Flash for answer generation, with:
     returning a generic error to the user
 """
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 import time
 import requests
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+print(f"[DEBUG] GEMINI_API_KEY: {GEMINI_API_KEY}")
+
 
 REQUEST_TIMEOUT_SECONDS = 30
 MAX_RETRIES = 3
@@ -39,6 +44,7 @@ def ask_gemini(prompt: str) -> str:
             )
             response.raise_for_status()
             data = response.json()
+            #print(data)
             return data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
         except (requests.exceptions.RequestException, KeyError, IndexError) as e:
