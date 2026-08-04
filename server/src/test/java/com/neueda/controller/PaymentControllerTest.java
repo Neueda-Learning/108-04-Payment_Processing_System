@@ -4,6 +4,7 @@ import com.neueda.exception.DuplicatePaymentException;
 import com.neueda.exception.ValidationException;
 import com.neueda.model.ErrorCode;
 import com.neueda.model.Payment;
+import com.neueda.model.PaymentStatus;
 import com.neueda.service.PaymentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -149,6 +150,11 @@ class PaymentControllerTest {
                 throw readException;
             }
             return paymentById;
+        }
+
+        @Override
+        public Payment transitionStatus(Long id, PaymentStatus targetStatus) {
+            throw new UnsupportedOperationException("transitionStatus is not used in PaymentControllerTest");
         }
 
         @Override
