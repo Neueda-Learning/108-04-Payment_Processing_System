@@ -1,6 +1,7 @@
 package com.neueda.model;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public class Payment {
 
@@ -10,11 +11,15 @@ public class Payment {
     private String sourceAccount;
     private String destinationAccount;
     private String idempotencyKey;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private String currency;
+    private String errorCode;
 
     // Empty constructor (required for frameworks)
     public Payment() {}
 
-    // Full constructor
+    // Partial constructor (without audit fields)
     public Payment(Long id, BigDecimal amount, String status,
                    String sourceAccount, String destinationAccount, String idempotencyKey) {
         this.id = id;
@@ -23,6 +28,22 @@ public class Payment {
         this.sourceAccount = sourceAccount;
         this.destinationAccount = destinationAccount;
         this.idempotencyKey = idempotencyKey;
+    }
+
+    // Extended constructor (with audit fields)
+    public Payment(Long id, BigDecimal amount, String status,
+                   String sourceAccount, String destinationAccount, String idempotencyKey,
+                   LocalDateTime createdAt, LocalDateTime updatedAt, String currency, String errorCode) {
+        this.id = id;
+        this.amount = amount;
+        this.status = status;
+        this.sourceAccount = sourceAccount;
+        this.destinationAccount = destinationAccount;
+        this.idempotencyKey = idempotencyKey;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.currency = currency;
+        this.errorCode = errorCode;
     }
 
     // Getters and Setters
@@ -73,5 +94,36 @@ public class Payment {
     public void setIdempotencyKey(String idempotencyKey) {
         this.idempotencyKey = idempotencyKey;
     }
-}
 
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public String getErrorCode() {
+        return errorCode;
+    }
+
+    public void setErrorCode(String errorCode) {
+        this.errorCode = errorCode;
+    }
+}
