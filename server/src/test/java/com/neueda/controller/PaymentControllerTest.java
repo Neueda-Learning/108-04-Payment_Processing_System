@@ -6,6 +6,7 @@ import com.neueda.model.ErrorCode;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.Payment;
 import com.neueda.model.PaymentStatus;
+import com.neueda.dto.UpdatePaymentStatusRequest;
 import com.neueda.service.PaymentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -103,6 +105,28 @@ class PaymentControllerTest {
     }
 
     @Test
+    void updatePaymentStatusReturnsUpdatedPayment() throws Exception {
+        paymentService.transitionResult = payment(99L, "VALIDATED", "idem-001");
+
+        mockMvc.perform(put("/payments/99/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"VALIDATED\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(99))
+            .andExpect(jsonPath("$.status").value("VALIDATED"));
+    }
+
+    @Test
+    void updatePaymentStatusReturnsBadRequestForUnsupportedStatus() throws Exception {
+        mockMvc.perform(put("/payments/99/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"UNKNOWN\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+            .andExpect(jsonPath("$.httpStatus").value(400));
+    }
+
+    @Test
     void createPaymentReturnsValidationErrorWhenServiceRejectsRequest() throws Exception {
         paymentService.createException = new ValidationException(ErrorCode.INVALID_AMOUNT, "Amount must be greater than 0");
 
@@ -166,6 +190,7 @@ class PaymentControllerTest {
     private static class StubPaymentService implements PaymentService {
         private Payment createdPayment;
         private Optional<Payment> paymentById = Optional.empty();
+        private Payment transitionResult;
         private List<Payment> allPayments = List.of();
         private List<Payment> paymentsByStatus = List.of();
         private RuntimeException createException;
@@ -203,7 +228,10 @@ class PaymentControllerTest {
 
         @Override
         public Payment transitionStatus(Long id, PaymentStatus targetStatus) {
-            throw new UnsupportedOperationException("transitionStatus is not used in PaymentControllerTest");
+            if (statusException != null) {
+                throw statusException;
+            }
+            return transitionResult;
         }
 
         @Override
