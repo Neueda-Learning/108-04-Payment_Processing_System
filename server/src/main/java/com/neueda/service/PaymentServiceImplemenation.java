@@ -33,7 +33,7 @@ public class PaymentServiceImplemenation implements PaymentService {
      *
      * Rules enforced:
      * 1. Validate amount, accounts, currency, and idempotency key format.
-     * 2. If a payment with the same idempotencyKey already exists, return it (idempotent).
+     * 2. If a payment with the same idempotencyKey already exists, throw DuplicatePaymentException.
      * 3. Default status to CREATED regardless of what the caller sends.
      * 4. Persist the payment and record the initial CREATED history entry.
      */
