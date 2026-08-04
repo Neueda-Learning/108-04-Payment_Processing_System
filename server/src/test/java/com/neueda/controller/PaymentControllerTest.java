@@ -154,7 +154,7 @@ class PaymentControllerTest {
 
         @Override
         public Payment transitionStatus(Long id, PaymentStatus targetStatus) {
-            return null;
+            throw new UnsupportedOperationException("transitionStatus is not used in PaymentControllerTest");
         }
 
         @Override
