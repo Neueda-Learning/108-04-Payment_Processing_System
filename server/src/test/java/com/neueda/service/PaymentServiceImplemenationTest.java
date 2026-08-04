@@ -163,8 +163,8 @@ class PaymentServiceImplemenationTest {
 
         assertAll(
             () -> assertEquals(2, history.size()),
-            () -> assertEquals(PaymentStatus.CREATED.name(), history.getFirst().getToStatus()),
-            () -> assertEquals(PaymentStatus.VALIDATED.name(), history.getLast().getToStatus())
+            () -> assertEquals(PaymentStatus.VALIDATED.name(), history.getFirst().getToStatus()),
+            () -> assertEquals(PaymentStatus.CREATED.name(), history.getLast().getToStatus())
         );
     }
 
