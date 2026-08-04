@@ -11,5 +11,13 @@ public interface PaymentRepository {
         List<Payment> findAll();
 
         Optional<Payment> findByIdempotencyKey(String key);
+
+        List<Payment> findAllByStatus(String status);
+
+        void updateStatus(Long id, String status);
+        
+        void updatePayment(Payment payment);
     
 }
+
+
