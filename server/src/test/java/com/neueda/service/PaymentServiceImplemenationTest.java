@@ -7,6 +7,7 @@ import com.neueda.exception.ValidationException;
 import com.neueda.model.Payment;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
+import com.neueda.dto.PaymentStatsResponse;
 import com.neueda.repository.PaymentHistoryRepository;
 import com.neueda.repository.PaymentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -154,6 +155,49 @@ class PaymentServiceImplemenationTest {
     }
 
     @Test
+    void getPaymentHistoryReturnsPersistedHistoryForExistingPayment() {
+        Payment saved = service.createPayment(validPayment("idem-history-1"));
+        service.transitionStatus(saved.getId(), PaymentStatus.VALIDATED);
+
+        List<PaymentHistory> history = service.getPaymentHistory(saved.getId());
+
+        assertAll(
+            () -> assertEquals(2, history.size()),
+            () -> assertEquals(PaymentStatus.VALIDATED.name(), history.getFirst().getToStatus()),
+            () -> assertEquals(PaymentStatus.CREATED.name(), history.getLast().getToStatus())
+        );
+    }
+
+    @Test
+    void getPaymentHistoryThrowsWhenPaymentDoesNotExist() {
+        assertThrows(PaymentNotFoundException.class, () -> service.getPaymentHistory(99999L));
+    }
+
+    @Test
+    void getPaymentsByStatusReturnsFilteredPayments() {
+        service.createPayment(validPayment("idem-status-1"));
+        Payment validated = service.createPayment(validPayment("idem-status-2"));
+        service.transitionStatus(validated.getId(), PaymentStatus.VALIDATED);
+
+        List<Payment> createdPayments = service.getPaymentsByStatus("created");
+        List<Payment> validatedPayments = service.getPaymentsByStatus("VALIDATED");
+
+        assertAll(
+            () -> assertEquals(1, createdPayments.size()),
+            () -> assertEquals(1, validatedPayments.size()),
+            () -> assertEquals(PaymentStatus.CREATED.name(), createdPayments.getFirst().getStatus()),
+            () -> assertEquals(PaymentStatus.VALIDATED.name(), validatedPayments.getFirst().getStatus())
+        );
+    }
+
+    @Test
+    void getPaymentsByStatusRejectsNullBlankAndUnsupportedStatuses() {
+        assertThrows(ValidationException.class, () -> service.getPaymentsByStatus(null));
+        assertThrows(ValidationException.class, () -> service.getPaymentsByStatus("   "));
+        assertThrows(ValidationException.class, () -> service.getPaymentsByStatus("UNKNOWN"));
+    }
+
+    @Test
     void getAllPaymentsReturnsRepositoryList() {
         service.createPayment(validPayment("idem-all-1"));
         service.createPayment(validPayment("idem-all-2"));
@@ -168,6 +212,25 @@ class PaymentServiceImplemenationTest {
         Optional<Payment> result = service.getPaymentByIdempotencyKey("idem-5");
 
         assertEquals("idem-5", result.orElseThrow().getIdempotencyKey());
+    }
+
+    @Test
+    void getPaymentStatsReturnsAggregatesForPayments() {
+        Payment completed = service.createPayment(validPayment("idem-stats-1"));
+        completed.setStatus(PaymentStatus.COMPLETED.name());
+        paymentRepository.updatePayment(completed);
+
+        Payment failed = service.createPayment(validPayment("idem-stats-2"));
+        service.transitionStatus(failed.getId(), PaymentStatus.FAILED);
+
+        PaymentStatsResponse stats = service.getPaymentStats();
+
+        assertAll(
+            () -> assertEquals(2L, stats.getTotalPayments()),
+            () -> assertEquals(1L, stats.getSuccessfulPayments()),
+            () -> assertEquals(1L, stats.getFailedPayments()),
+            () -> assertEquals(new BigDecimal("100.00"), stats.getTotalAmount())
+        );
     }
 
     private static Payment validPayment(String key) {

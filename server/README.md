@@ -85,14 +85,79 @@ Request example:
   "status": "CREATED",
   "sourceAccount": "ACC001",
   "destinationAccount": "ACC002",
-  "idempotencyKey": "idem-001"
+  "idempotencyKey": "idem-001",
+  "currency": "USD"
 }
 ```
+
+Responses: `201` created payment, `400` validation error, `409` duplicate idempotency key.
+
+### List / Filter Payments
+
+- Method: `GET`
+- Path: `/payments`
+- Optional query param: `status` (`CREATED`, `VALIDATED`, `SENT`, `COMPLETED`, `FAILED`)
+
+```text
+GET /payments
+GET /payments?status=VALIDATED
+```
+
+Responses: `200` with a list of payments, `400` if `status` is not a recognized value.
 
 ### Get Payment by ID
 
 - Method: `GET`
 - Path: `/payments/{id}`
+
+Responses: `200` found, `404` not found.
+
+### Update Payment Status
+
+- Method: `PUT`
+- Path: `/payments/{id}/status`
+
+Request example:
+
+```json
+{
+  "status": "VALIDATED"
+}
+```
+
+Responses: `200` updated payment, `400` invalid/unsupported status or illegal lifecycle transition, `404` payment not found.
+
+### Get Payment History
+
+- Method: `GET`
+- Path: `/payments/{id}/history`
+
+Responses: `200` with a list of `PaymentHistory` entries (newest first), `404` payment not found.
+
+### Get Payment by Idempotency Key
+
+- Method: `GET`
+- Path: `/payments/idempotency/{key}`
+
+Responses: `200` found, `404` not found.
+
+### Payment Stats
+
+- Method: `GET`
+- Path: `/stats/payments`
+
+Returns aggregate counts and rates:
+
+```json
+{
+  "totalPayments": 5,
+  "successfulPayments": 3,
+  "failedPayments": 1,
+  "totalAmount": 425.50,
+  "successRate": 60.0,
+  "failureRate": 20.0
+}
+```
 
 ## Database Schema (Current)
 
@@ -112,7 +177,20 @@ Request example:
 - `status`
 - `source_account`
 - `destination_account`
-- `idempotency_key`
+- `idempotency_key` (unique)
+- `created_at`
+- `updated_at`
+- `currency`
+- `error_code`
+
+### `payment_history`
+
+- `id`
+- `payment_id` (foreign key to `payments.id`)
+- `from_status`
+- `to_status`
+- `timestamp`
+- `notes`
 
 ## Implemented Validation Foundation
 
@@ -136,11 +214,10 @@ Run tests:
 ./mvnw test
 ```
 
-Current tests cover basic app bootstrapping and controller behavior; deeper repository/service/validation tests are still pending.
+Coverage includes controller (MockMvc), service (lifecycle, validation, stats), and repository (JDBC) layers for payments, payment history, and accounts, plus global exception handling.
 
 ## Known Gaps
 
-- no status transition update endpoint yet
-- no payment history/audit table yet
-- idempotency and validation not fully enforced during create flow
-- no list/filter endpoint for payments by status yet
+- frontend integration with backend APIs
+- fuller negative-path/edge-case test coverage as new features are added
+- API test collection (Postman/Bruno) not yet checked into the repo
