@@ -27,10 +27,10 @@ Install/update dependencies inside each module folder rather than from repositor
 
 ## Current State
 
-- Backend: minimal working API for creating a payment and fetching by id
+- Backend: full payment lifecycle API (create, list/filter, status transitions, history, idempotency lookup, stats)
 - Frontend: complete page flow and navigation, currently mock-data driven
 - Chatbot: working FAQ retrieval + LLM answer generation with fallback
-- Validation framework: implemented (error codes, validator, exception handling), partial runtime wiring
+- Validation framework: implemented and fully wired (error codes, validator, exception handling)
 
 ## Quick Start
 
@@ -90,7 +90,12 @@ Without a Gemini key, the chatbot still works using FAQ fallback responses.
 ## Backend API (Implemented)
 
 - `POST /payments` - create payment
+- `GET /payments` - list payments (optional `status` filter)
 - `GET /payments/{id}` - fetch payment by id
+- `PUT /payments/{id}/status` - transition payment status
+- `GET /payments/{id}/history` - fetch payment audit history
+- `GET /payments/idempotency/{key}` - fetch payment by idempotency key
+- `GET /stats/payments` - aggregate payment stats (counts, totals, success/failure rate)
 
 Example create request:
 
@@ -103,6 +108,8 @@ Example create request:
 	"idempotencyKey": "idem-001"
 }
 ```
+
+See `server/README.md` for full request/response examples for each endpoint.
 
 ## Database Modes
 
@@ -121,10 +128,8 @@ Example create request:
 
 The following are not fully implemented yet:
 
-- status transition endpoints (VALIDATED/SENT/COMPLETED/FAILED)
-- payment history/audit trail persistence
-- frontend integration with backend APIs
+- frontend integration with backend APIs (payment form, history, stats currently static/mock)
 - analytics and history based on live backend data
-- fuller unit/integration test coverage
+- API test collection (Postman/Bruno) checked into the repo
 
 

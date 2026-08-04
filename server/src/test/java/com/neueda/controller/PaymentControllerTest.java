@@ -1,6 +1,7 @@
 package com.neueda.controller;
 
 import com.neueda.exception.DuplicatePaymentException;
+import com.neueda.exception.InvalidStatusTransitionException;
 import com.neueda.exception.PaymentNotFoundException;
 import com.neueda.exception.ValidationException;
 import com.neueda.model.ErrorCode;
@@ -124,6 +125,30 @@ class PaymentControllerTest {
                 .content("{\"status\":\"UNKNOWN\"}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+            .andExpect(jsonPath("$.httpStatus").value(400));
+    }
+
+    @Test
+    void updatePaymentStatusReturnsNotFoundWhenPaymentIsMissing() throws Exception {
+        paymentService.statusException = new PaymentNotFoundException(99L);
+
+        mockMvc.perform(put("/payments/99/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"VALIDATED\"}"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.errorCode").value("PAYMENT_NOT_FOUND"))
+            .andExpect(jsonPath("$.httpStatus").value(404));
+    }
+
+    @Test
+    void updatePaymentStatusReturnsBadRequestForInvalidTransition() throws Exception {
+        paymentService.statusException = new InvalidStatusTransitionException(PaymentStatus.CREATED, PaymentStatus.COMPLETED);
+
+        mockMvc.perform(put("/payments/99/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"COMPLETED\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errorCode").value("INVALID_STATUS_TRANSITION"))
             .andExpect(jsonPath("$.httpStatus").value(400));
     }
 
