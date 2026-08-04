@@ -4,3 +4,4 @@ sentence-transformers==3.2.1
 numpy==1.26.4
 requests==2.32.3
 pydantic==2.9.2
+python-dotenv==1.2.2

@@ -81,6 +81,26 @@ Note: embeddings are precomputed at image build time in the Dockerfile.
 
 If missing, chatbot still responds using retrieval fallback mode.
 
+### Setting `GEMINI_API_KEY` locally (without publishing it)
+
+`src/llm.py` loads environment variables from a local `.env` file via
+`python-dotenv`. `.env` is already listed in `chatbot/.gitignore`, so it is
+never committed or pushed.
+
+1. Copy the template: `cp .env.example .env` (or `Copy-Item .env.example .env` on Windows).
+2. Open `chatbot/.env` and set your real key:
+   ```text
+   GEMINI_API_KEY=your_actual_key_here
+   ```
+3. Run the service as usual from `chatbot/` — `load_dotenv()` finds `.env`
+   automatically, whether uvicorn is started from `chatbot/` or `chatbot/src/`.
+
+Never paste a real API key into a commit, PR description, or shared chat.
+If a key is ever exposed, revoke/rotate it in the Gemini API console.
+
+For Docker, keep passing it at run time instead (`-e GEMINI_API_KEY=<key>`),
+not baked into the image.
+
 ## API
 
 ### Health
