@@ -115,6 +115,7 @@ Example create request:
 - Project brief and lifecycle rules: `Rules/payment_processing.md`
 - Team/project workflow: `Rules/getting_started.md`
 - Validation framework notes: `server/src/main/java/com/neueda/validation_framework_readme.md`
+- Next phases and API testing roadmap: `README_NEXT_PHASES_AND_API_TESTING.md`
 
 ## Known Gaps
 
