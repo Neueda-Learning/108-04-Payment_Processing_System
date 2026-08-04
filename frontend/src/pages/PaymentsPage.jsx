@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import axios from "axios";
 function PaymentsPage() {
 
   const [payment, setPayment] = useState({
@@ -17,10 +17,55 @@ function PaymentsPage() {
   };
 
 
-  const handleSubmit = () => {
-    console.log(payment);
-    // API call will come here
-  };
+
+const handleSubmit = async () => {
+
+  try {
+
+    // fetch destination account details
+    const accountResponse = await axios.get(
+      `http://localhost:8080/accounts/${payment.destinationAccount}`
+    );
+
+    const destinationAccount = accountResponse.data;
+
+    // create payment object
+    const paymentRequest = {
+      amount: payment.amount,
+      status: "CREATED",
+      sourceAccount: localStorage.getItem("account"),
+      destinationAccount: payment.destinationAccount,
+      idempotencyKey: "idem-" + Date.now(),
+      description: payment.summary,
+      currency: destinationAccount.accountCurrencyType
+    };
+
+
+    // send payment
+    const response = await axios.post(
+      "http://localhost:8080/payments/",
+      paymentRequest
+    );
+
+    console.log("Payment successful:", response.data);
+
+    alert("Payment completed successfully");
+
+
+  } catch (error) {
+
+    console.error("Payment failed:", error);
+
+    if(error.response?.status === 404){
+      alert("Destination account does not exist");
+    }
+    else{
+      alert("Payment failed");
+    }
+
+  }
+
+};
 
 
   return (

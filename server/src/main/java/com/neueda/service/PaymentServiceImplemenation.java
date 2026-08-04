@@ -39,12 +39,17 @@ public class PaymentServiceImplemenation implements PaymentService {
      */
     @Override
     public Payment createPayment(Payment payment) {
-
+System.out.println("Creating payment: " + payment);
         // 1. Run field-level validation
+        System.out.println("Validating payment fields: " + payment);
         PaymentValidator.validateAmount(payment.getAmount());
+        System.out.println("Amount validated: " + payment.getAmount());
         PaymentValidator.validateAccounts(payment.getSourceAccount(), payment.getDestinationAccount());
+        System.out.println("Accounts validated: " + payment.getSourceAccount() + ", " + payment.getDestinationAccount());
         PaymentValidator.validateCurrency(payment.getCurrency());
+        System.out.println("Currency validated: " + payment.getCurrency());
         PaymentValidator.validateIdempotencyKey(payment.getIdempotencyKey());
+        System.out.println("Validation passed for payment: " + payment);
 
         // 2. Idempotency check — return the existing payment if the key is already known
         Optional<Payment> existing = paymentRepository.findByIdempotencyKey(payment.getIdempotencyKey());

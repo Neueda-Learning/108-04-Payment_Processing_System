@@ -25,6 +25,7 @@ public class PaymentController {
 
     @PostMapping("/")
     public ResponseEntity<Payment> createPayment(@RequestBody Payment payment) {
+        System.out.println("Received payment creation request: " + payment);
         Payment createdPayment = paymentService.createPayment(payment);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPayment);
     }

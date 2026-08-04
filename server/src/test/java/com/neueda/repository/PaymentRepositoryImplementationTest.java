@@ -154,12 +154,22 @@ class PaymentRepositoryImplementationTest {
             () -> repository.save(payment(null, "CREATED", "idem-duplicate", "18.00", "USD", null)));
     }
 
-    private static Payment payment(Long id, String status, String key, String amount, String currency, String errorCode) {
-        Payment payment = new Payment(id, new BigDecimal(amount), status, "ACC01010", "ACC02020", key);
-        payment.setCurrency(currency);
-        payment.setErrorCode(errorCode);
-        return payment;
-    }
+   private static Payment payment(Long id, String status, String key, String amount, String currency, String errorCode) {
+    Payment payment = new Payment(
+            id,
+            new BigDecimal(amount),
+            status,
+            "ACC01010",
+            "ACC02020",
+            key,
+            "Test payment"
+    );
+
+    payment.setCurrency(currency);
+    payment.setErrorCode(errorCode);
+
+    return payment;
+}
 }
 
 

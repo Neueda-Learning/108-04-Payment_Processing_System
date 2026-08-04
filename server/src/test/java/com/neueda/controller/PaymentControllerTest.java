@@ -115,8 +115,16 @@ class PaymentControllerTest {
     }
 
     private static Payment payment(Long id, String status, String key) {
-        return new Payment(id, new BigDecimal("125.50"), status, "ACC00111", "ACC00222", key);
-    }
+    return new Payment(
+            id,
+            new BigDecimal("125.50"),
+            status,
+            "ACC00111",
+            "ACC00222",
+            key,
+            "Test payment"
+    );
+}
 
     private static String validPaymentJson(String key) {
         return """

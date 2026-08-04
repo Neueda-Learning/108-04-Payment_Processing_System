@@ -15,25 +15,27 @@ public class Payment {
     private LocalDateTime updatedAt;
     private String currency;
     private String errorCode;
+    private String description; // New field for payment description
 
     // Empty constructor (required for frameworks)
     public Payment() {}
 
     // Partial constructor (without audit fields)
     public Payment(Long id, BigDecimal amount, String status,
-                   String sourceAccount, String destinationAccount, String idempotencyKey) {
+                   String sourceAccount, String destinationAccount, String idempotencyKey,String description) {
         this.id = id;
         this.amount = amount;
         this.status = status;
         this.sourceAccount = sourceAccount;
         this.destinationAccount = destinationAccount;
         this.idempotencyKey = idempotencyKey;
+        this.description = description;
     }
 
     // Extended constructor (with audit fields)
     public Payment(Long id, BigDecimal amount, String status,
                    String sourceAccount, String destinationAccount, String idempotencyKey,
-                   LocalDateTime createdAt, LocalDateTime updatedAt, String currency, String errorCode) {
+                   LocalDateTime createdAt, LocalDateTime updatedAt, String currency, String errorCode, String description) {
         this.id = id;
         this.amount = amount;
         this.status = status;
@@ -44,6 +46,7 @@ public class Payment {
         this.updatedAt = updatedAt;
         this.currency = currency;
         this.errorCode = errorCode;
+        this.description = description; // Initialize the new field
     }
 
     // Getters and Setters
@@ -125,5 +128,13 @@ public class Payment {
 
     public void setErrorCode(String errorCode) {
         this.errorCode = errorCode;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

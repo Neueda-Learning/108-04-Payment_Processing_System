@@ -32,7 +32,8 @@ public class PaymentRepositoryImplementation implements PaymentRepository {
                 resultset.getTimestamp("updated_at") != null ? 
                     resultset.getTimestamp("updated_at").toLocalDateTime() : null,
                 resultset.getString("currency"),
-                resultset.getString("error_code")
+                resultset.getString("error_code"),
+                resultset.getString("description") // Retrieve the new field
         );
     }
 
@@ -49,11 +50,12 @@ public class PaymentRepositoryImplementation implements PaymentRepository {
             currency,
             error_code,
             created_at,
-            updated_at
+            updated_at,
+            description
         )
-        VALUES(?,?,?,?,?,?,?,?,?)
+        VALUES(?,?,?,?,?,?,?,?,?,?)
         """;
-
+System.out.println("Executing SQL: " + sql);
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
@@ -68,6 +70,7 @@ public class PaymentRepositoryImplementation implements PaymentRepository {
             LocalDateTime now = LocalDateTime.now();
             ps.setTimestamp(8, java.sql.Timestamp.valueOf(now));
             ps.setTimestamp(9, java.sql.Timestamp.valueOf(now));
+            ps.setString(10, payment.getDescription()); // Set the new field
             return ps;
         }, keyHolder);
         Number generatedId = extractGeneratedId(keyHolder);
