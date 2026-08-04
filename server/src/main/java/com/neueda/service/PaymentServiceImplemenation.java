@@ -46,7 +46,7 @@ public class PaymentServiceImplemenation implements PaymentService {
         PaymentValidator.validateCurrency(payment.getCurrency());
         PaymentValidator.validateIdempotencyKey(payment.getIdempotencyKey());
 
-        // 2. Idempotency check — return the existing payment if the key is already known
+        // 2. Idempotency check — reject if the key is already known
         Optional<Payment> existing = paymentRepository.findByIdempotencyKey(payment.getIdempotencyKey());
         if (existing.isPresent()) {
             throw new DuplicatePaymentException(payment.getIdempotencyKey(), existing.get().getId());
@@ -56,8 +56,14 @@ public class PaymentServiceImplemenation implements PaymentService {
         payment.setStatus(PaymentStatus.CREATED.name());
 
         // 4. Persist and record the creation history entry
-        Payment saved = paymentRepository.save(payment);
-
+        final Payment saved;
+        try {
+            saved = paymentRepository.save(payment);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            Payment alreadySaved = paymentRepository.findByIdempotencyKey(payment.getIdempotencyKey())
+                    .orElseThrow(() -> ex);
+            throw new DuplicatePaymentException(payment.getIdempotencyKey(), alreadySaved.getId());
+        }
         historyRepository.save(new PaymentHistory(
                 saved.getId(),
                 null,               // no previous status
