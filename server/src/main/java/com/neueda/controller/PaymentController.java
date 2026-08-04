@@ -4,6 +4,7 @@ import com.neueda.dto.UpdatePaymentStatusRequest;
 import com.neueda.exception.ValidationException;
 import com.neueda.model.ErrorCode;
 import com.neueda.model.Payment;
+import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
 import com.neueda.service.PaymentService;
 import org.springframework.http.HttpStatus;
@@ -59,6 +60,18 @@ public class PaymentController {
         }
 
         return ResponseEntity.ok(paymentService.transitionStatus(id, targetStatus));
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<PaymentHistory>> getPaymentHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(paymentService.getPaymentHistory(id));
+    }
+
+    @GetMapping("/idempotency/{key}")
+    public ResponseEntity<Payment> getPaymentByIdempotencyKey(@PathVariable String key) {
+        return paymentService.getPaymentByIdempotencyKey(key)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}")

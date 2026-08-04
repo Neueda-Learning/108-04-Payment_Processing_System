@@ -1,6 +1,7 @@
 package com.neueda.controller;
 
 import com.neueda.exception.DuplicatePaymentException;
+import com.neueda.exception.PaymentNotFoundException;
 import com.neueda.exception.ValidationException;
 import com.neueda.model.ErrorCode;
 import com.neueda.model.PaymentHistory;
@@ -127,6 +128,49 @@ class PaymentControllerTest {
     }
 
     @Test
+    void getPaymentHistoryReturnsHistoryEntries() throws Exception {
+        paymentService.paymentHistory = List.of(
+            new PaymentHistory(10L, 99L, null, "CREATED", null, "Created"),
+            new PaymentHistory(11L, 99L, "CREATED", "VALIDATED", null, "Validated")
+        );
+
+        mockMvc.perform(get("/payments/99/history"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(10))
+            .andExpect(jsonPath("$[0].toStatus").value("CREATED"))
+            .andExpect(jsonPath("$[1].fromStatus").value("CREATED"))
+            .andExpect(jsonPath("$[1].toStatus").value("VALIDATED"));
+    }
+
+    @Test
+    void getPaymentHistoryReturnsNotFoundWhenPaymentIsMissing() throws Exception {
+        paymentService.paymentHistoryException = new PaymentNotFoundException(99L);
+
+        mockMvc.perform(get("/payments/99/history"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.errorCode").value("PAYMENT_NOT_FOUND"))
+            .andExpect(jsonPath("$.httpStatus").value(404));
+    }
+
+    @Test
+    void getPaymentByIdempotencyKeyReturnsPaymentWhenPresent() throws Exception {
+        paymentService.paymentByIdempotencyKey = Optional.of(payment(99L, "CREATED", "idem-001"));
+
+        mockMvc.perform(get("/payments/idempotency/idem-001"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(99))
+            .andExpect(jsonPath("$.idempotencyKey").value("idem-001"));
+    }
+
+    @Test
+    void getPaymentByIdempotencyKeyReturnsNotFoundWhenMissing() throws Exception {
+        paymentService.paymentByIdempotencyKey = Optional.empty();
+
+        mockMvc.perform(get("/payments/idempotency/idem-missing"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
     void createPaymentReturnsValidationErrorWhenServiceRejectsRequest() throws Exception {
         paymentService.createException = new ValidationException(ErrorCode.INVALID_AMOUNT, "Amount must be greater than 0");
 
@@ -190,12 +234,15 @@ class PaymentControllerTest {
     private static class StubPaymentService implements PaymentService {
         private Payment createdPayment;
         private Optional<Payment> paymentById = Optional.empty();
+        private Optional<Payment> paymentByIdempotencyKey = Optional.empty();
         private Payment transitionResult;
         private List<Payment> allPayments = List.of();
         private List<Payment> paymentsByStatus = List.of();
+        private List<PaymentHistory> paymentHistory = List.of();
         private RuntimeException createException;
         private RuntimeException readException;
         private RuntimeException statusException;
+        private RuntimeException paymentHistoryException;
 
         @Override
         public Payment createPayment(Payment payment) {
@@ -215,7 +262,10 @@ class PaymentControllerTest {
 
         @Override
         public List<PaymentHistory> getPaymentHistory(Long id) {
-            throw new UnsupportedOperationException("getPaymentHistory is not used in PaymentControllerTest");
+            if (paymentHistoryException != null) {
+                throw paymentHistoryException;
+            }
+            return paymentHistory;
         }
 
         @Override
@@ -241,7 +291,7 @@ class PaymentControllerTest {
 
         @Override
         public Optional<Payment> getPaymentByIdempotencyKey(String key) {
-            return Optional.empty();
+            return paymentByIdempotencyKey;
         }
     }
 }
