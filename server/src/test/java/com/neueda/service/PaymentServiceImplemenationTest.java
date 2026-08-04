@@ -1,7 +1,16 @@
 package com.neueda.service;
 
+import com.neueda.exception.DuplicatePaymentException;
+import com.neueda.exception.InvalidStatusTransitionException;
+import com.neueda.exception.PaymentNotFoundException;
+import com.neueda.exception.ValidationException;
 import com.neueda.model.Payment;
+import com.neueda.model.PaymentHistory;
+import com.neueda.model.PaymentStatus;
+import com.neueda.repository.PaymentHistoryRepository;
 import com.neueda.repository.PaymentRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -9,109 +18,223 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertIterableEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PaymentServiceImplemenationTest {
 
-    @Test
-    void createPaymentDelegatesToRepositorySave() {
-        InMemoryPaymentRepository repository = new InMemoryPaymentRepository();
-        PaymentServiceImplemenation service = new PaymentServiceImplemenation(repository);
-        Payment payment = payment(1L, "idem-1");
+    private InMemoryPaymentRepository paymentRepository;
+    private InMemoryHistoryRepository historyRepository;
+    private PaymentServiceImplemenation service;
 
-        Payment created = service.createPayment(payment);
+    @BeforeEach
+    void setUp() {
+        paymentRepository = new InMemoryPaymentRepository();
+        historyRepository = new InMemoryHistoryRepository();
+        service = new PaymentServiceImplemenation(paymentRepository, historyRepository);
+    }
 
-        assertSame(payment, repository.savedPayment);
-        assertSame(payment, created);
+    @Nested
+    class CreatePayment {
+
+        @Test
+        void happyPath_savesPaymentWithCreatedStatusAndRecordsHistory() {
+            Payment payment = validPayment("idem-1");
+
+            Payment result = service.createPayment(payment);
+
+            assertAll(
+                () -> assertNotNull(result.getId()),
+                () -> assertEquals(PaymentStatus.CREATED.name(), result.getStatus()),
+                () -> assertEquals(1, historyRepository.saved.size()),
+                () -> assertEquals(PaymentStatus.CREATED.name(), historyRepository.saved.getFirst().getToStatus())
+            );
+        }
+
+        @Test
+        void forcesCreatedStatusEvenIfCallerPassesDifferentStatus() {
+            Payment payment = validPayment("idem-force");
+            payment.setStatus("COMPLETED");
+
+            Payment result = service.createPayment(payment);
+
+            assertEquals(PaymentStatus.CREATED.name(), result.getStatus());
+        }
+
+        @Test
+        void duplicateIdempotencyKey_throwsDuplicatePaymentException() {
+            service.createPayment(validPayment("idem-dup"));
+
+            DuplicatePaymentException ex = assertThrows(DuplicatePaymentException.class,
+                () -> service.createPayment(validPayment("idem-dup")));
+
+            assertEquals("idem-dup", ex.getIdempotencyKey());
+        }
+
+        @Test
+        void invalidAmount_throwsValidationException() {
+            Payment payment = validPayment("idem-bad-amount");
+            payment.setAmount(new BigDecimal("-1.00"));
+
+            assertThrows(ValidationException.class, () -> service.createPayment(payment));
+        }
+
+        @Test
+        void nullAmount_throwsValidationException() {
+            Payment payment = validPayment("idem-null-amount");
+            payment.setAmount(null);
+
+            assertThrows(ValidationException.class, () -> service.createPayment(payment));
+        }
+
+        @Test
+        void unsupportedCurrency_throwsValidationException() {
+            Payment payment = validPayment("idem-cur");
+            payment.setCurrency("BTC");
+
+            assertThrows(ValidationException.class, () -> service.createPayment(payment));
+        }
+
+        @Test
+        void sameSourceAndDestinationAccount_throwsValidationException() {
+            Payment payment = validPayment("idem-same-acc");
+            payment.setSourceAccount("ACC12345");
+            payment.setDestinationAccount("ACC12345");
+
+            assertThrows(ValidationException.class, () -> service.createPayment(payment));
+        }
+    }
+
+    @Nested
+    class TransitionStatus {
+
+        @Test
+        void createdToValidated_succeedsAndRecordsHistory() {
+            Payment payment = service.createPayment(validPayment("idem-tr-1"));
+
+            Payment result = service.transitionStatus(payment.getId(), PaymentStatus.VALIDATED);
+
+            assertAll(
+                () -> assertEquals(PaymentStatus.VALIDATED.name(), result.getStatus()),
+                () -> assertEquals(2, historyRepository.saved.size()),
+                () -> assertEquals(PaymentStatus.VALIDATED.name(), historyRepository.saved.getLast().getToStatus()),
+                () -> assertEquals(PaymentStatus.CREATED.name(), historyRepository.saved.getLast().getFromStatus())
+            );
+        }
+
+        @Test
+        void invalidTransition_createdToCompleted_throwsInvalidStatusTransitionException() {
+            Payment payment = service.createPayment(validPayment("idem-inv-1"));
+
+            InvalidStatusTransitionException ex = assertThrows(InvalidStatusTransitionException.class,
+                () -> service.transitionStatus(payment.getId(), PaymentStatus.COMPLETED));
+
+            assertAll(
+                () -> assertEquals(PaymentStatus.CREATED, ex.getFromStatus()),
+                () -> assertEquals(PaymentStatus.COMPLETED, ex.getToStatus())
+            );
+        }
+
+        @Test
+        void nonExistentPayment_throwsPaymentNotFoundException() {
+            assertThrows(PaymentNotFoundException.class,
+                () -> service.transitionStatus(99999L, PaymentStatus.VALIDATED));
+        }
     }
 
     @Test
     void getPaymentByIdReturnsRepositoryResult() {
-        Payment expected = payment(2L, "idem-2");
-        InMemoryPaymentRepository repository = new InMemoryPaymentRepository();
-        repository.paymentById = Optional.of(expected);
-        PaymentServiceImplemenation service = new PaymentServiceImplemenation(repository);
+        Payment saved = service.createPayment(validPayment("idem-get-1"));
 
-        Optional<Payment> result = service.getPaymentById(2L);
+        Optional<Payment> result = service.getPaymentById(saved.getId());
 
-        assertEquals(Optional.of(expected), result);
-        assertEquals(2L, repository.lastRequestedId);
+        assertEquals(Optional.of(saved), result);
     }
 
     @Test
     void getAllPaymentsReturnsRepositoryList() {
-        List<Payment> expected = List.of(payment(3L, "idem-3"), payment(4L, "idem-4"));
-        InMemoryPaymentRepository repository = new InMemoryPaymentRepository();
-        repository.allPayments = new ArrayList<>(expected);
-        PaymentServiceImplemenation service = new PaymentServiceImplemenation(repository);
+        service.createPayment(validPayment("idem-all-1"));
+        service.createPayment(validPayment("idem-all-2"));
 
-        List<Payment> result = service.getAllPayments();
-
-        assertIterableEquals(expected, result);
+        assertEquals(2, service.getAllPayments().size());
     }
 
     @Test
     void getPaymentByIdempotencyKeyReturnsRepositoryResult() {
-        Payment expected = payment(5L, "idem-5");
-        InMemoryPaymentRepository repository = new InMemoryPaymentRepository();
-        repository.paymentByKey = Optional.of(expected);
-        PaymentServiceImplemenation service = new PaymentServiceImplemenation(repository);
+        service.createPayment(validPayment("idem-5"));
 
         Optional<Payment> result = service.getPaymentByIdempotencyKey("idem-5");
 
-        assertEquals(Optional.of(expected), result);
-        assertEquals("idem-5", repository.lastRequestedKey);
+        assertEquals("idem-5", result.orElseThrow().getIdempotencyKey());
     }
 
-    private static Payment payment(Long id, String key) {
-        return new Payment(id, new BigDecimal("50.00"), "CREATED", "SRC12345", "DST12345", key);
+    private static Payment validPayment(String key) {
+        Payment payment = new Payment();
+        payment.setAmount(new BigDecimal("50.00"));
+        payment.setSourceAccount("SRC12345");
+        payment.setDestinationAccount("DST12345");
+        payment.setIdempotencyKey(key);
+        payment.setCurrency("USD");
+        return payment;
     }
 
     private static class InMemoryPaymentRepository implements PaymentRepository {
-        private Payment savedPayment;
-        private Optional<Payment> paymentById = Optional.empty();
-        private Optional<Payment> paymentByKey = Optional.empty();
-        private List<Payment> allPayments = List.of();
-        private Long lastRequestedId;
-        private String lastRequestedKey;
+        private final List<Payment> store = new ArrayList<>();
+        private long nextId = 1L;
 
         @Override
         public Payment save(Payment payment) {
-            this.savedPayment = payment;
+            payment.setId(nextId++);
+            store.add(payment);
             return payment;
         }
 
         @Override
         public Optional<Payment> findById(Long id) {
-            this.lastRequestedId = id;
-            return paymentById;
+            return store.stream().filter(p -> id.equals(p.getId())).findFirst();
         }
 
         @Override
         public List<Payment> findAll() {
-            return allPayments;
+            return List.copyOf(store);
         }
 
         @Override
         public Optional<Payment> findByIdempotencyKey(String key) {
-            this.lastRequestedKey = key;
-            return paymentByKey;
+            return store.stream().filter(p -> key != null && key.equals(p.getIdempotencyKey())).findFirst();
         }
 
         @Override
         public List<Payment> findAllByStatus(String status) {
-            return List.of();
+            return store.stream().filter(p -> status.equals(p.getStatus())).toList();
         }
 
         @Override
         public void updateStatus(Long id, String status) {
+            findById(id).ifPresent(payment -> payment.setStatus(status));
         }
 
         @Override
         public void updatePayment(Payment payment) {
+            store.removeIf(existing -> payment.getId().equals(existing.getId()));
+            store.add(payment);
+        }
+    }
+
+    private static class InMemoryHistoryRepository implements PaymentHistoryRepository {
+        private final List<PaymentHistory> saved = new ArrayList<>();
+
+        @Override
+        public PaymentHistory save(PaymentHistory history) {
+            saved.add(history);
+            return history;
+        }
+
+        @Override
+        public List<PaymentHistory> findByPaymentId(Long paymentId) {
+            return saved.stream().filter(h -> paymentId.equals(h.getPaymentId())).toList();
         }
     }
 }
-

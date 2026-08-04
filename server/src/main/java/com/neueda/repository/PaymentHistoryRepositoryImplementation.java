@@ -59,6 +59,7 @@ public class PaymentHistoryRepositoryImplementation implements PaymentHistoryRep
         }
 
         return history;
+    }
 
     private Number extractGeneratedId(KeyHolder keyHolder) {
         if (keyHolder.getKeyList().isEmpty()) {
