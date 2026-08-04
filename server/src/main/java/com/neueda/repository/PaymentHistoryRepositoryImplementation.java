@@ -39,17 +39,17 @@ public class PaymentHistoryRepositoryImplementation implements PaymentHistoryRep
         """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
+        LocalDateTime timestamp = history.getTimestamp() != null ? history.getTimestamp() : LocalDateTime.now();
+        history.setTimestamp(timestamp);
+
         jdbc.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setLong(1, history.getPaymentId());
             ps.setString(2, history.getFromStatus());
             ps.setString(3, history.getToStatus());
-            
-            LocalDateTime timestamp = history.getTimestamp() != null ? 
-                history.getTimestamp() : LocalDateTime.now();
             ps.setTimestamp(4, java.sql.Timestamp.valueOf(timestamp));
             ps.setString(5, history.getNotes());
-            
+
             return ps;
         }, keyHolder);
 
@@ -59,7 +59,6 @@ public class PaymentHistoryRepositoryImplementation implements PaymentHistoryRep
         }
 
         return history;
-    }
 
     private Number extractGeneratedId(KeyHolder keyHolder) {
         if (keyHolder.getKeyList().isEmpty()) {
