@@ -3,6 +3,7 @@ package com.neueda.controller;
 import com.neueda.exception.DuplicatePaymentException;
 import com.neueda.exception.ValidationException;
 import com.neueda.model.ErrorCode;
+import com.neueda.model.PaymentHistory;
 import com.neueda.model.Payment;
 import com.neueda.model.PaymentStatus;
 import com.neueda.service.PaymentService;
@@ -70,6 +71,38 @@ class PaymentControllerTest {
     }
 
     @Test
+    void getPaymentsReturnsAllPaymentsWhenNoStatusIsProvided() throws Exception {
+        paymentService.allPayments = List.of(
+            payment(1L, "CREATED", "idem-1"),
+            payment(2L, "VALIDATED", "idem-2")
+        );
+
+        mockMvc.perform(get("/payments"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(1))
+            .andExpect(jsonPath("$[1].id").value(2));
+    }
+
+    @Test
+    void getPaymentsReturnsFilteredPaymentsWhenStatusIsProvided() throws Exception {
+        paymentService.paymentsByStatus = List.of(payment(2L, "VALIDATED", "idem-2"));
+
+        mockMvc.perform(get("/payments").param("status", "validated"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].status").value("VALIDATED"));
+    }
+
+    @Test
+    void getPaymentsReturnsBadRequestForInvalidStatus() throws Exception {
+        paymentService.statusException = new ValidationException(ErrorCode.VALIDATION_FAILED, "Unsupported payment status: UNKNOWN");
+
+        mockMvc.perform(get("/payments").param("status", "UNKNOWN"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+            .andExpect(jsonPath("$.httpStatus").value(400));
+    }
+
+    @Test
     void createPaymentReturnsValidationErrorWhenServiceRejectsRequest() throws Exception {
         paymentService.createException = new ValidationException(ErrorCode.INVALID_AMOUNT, "Amount must be greater than 0");
 
@@ -133,8 +166,11 @@ class PaymentControllerTest {
     private static class StubPaymentService implements PaymentService {
         private Payment createdPayment;
         private Optional<Payment> paymentById = Optional.empty();
+        private List<Payment> allPayments = List.of();
+        private List<Payment> paymentsByStatus = List.of();
         private RuntimeException createException;
         private RuntimeException readException;
+        private RuntimeException statusException;
 
         @Override
         public Payment createPayment(Payment payment) {
@@ -153,13 +189,26 @@ class PaymentControllerTest {
         }
 
         @Override
+        public List<PaymentHistory> getPaymentHistory(Long id) {
+            throw new UnsupportedOperationException("getPaymentHistory is not used in PaymentControllerTest");
+        }
+
+        @Override
+        public List<Payment> getPaymentsByStatus(String status) {
+            if (statusException != null) {
+                throw statusException;
+            }
+            return paymentsByStatus;
+        }
+
+        @Override
         public Payment transitionStatus(Long id, PaymentStatus targetStatus) {
             throw new UnsupportedOperationException("transitionStatus is not used in PaymentControllerTest");
         }
 
         @Override
         public List<Payment> getAllPayments() {
-            return List.of();
+            return allPayments;
         }
 
         @Override

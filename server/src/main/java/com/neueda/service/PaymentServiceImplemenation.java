@@ -120,6 +120,31 @@ public class PaymentServiceImplemenation implements PaymentService {
     }
 
     @Override
+    public List<PaymentHistory> getPaymentHistory(Long id) {
+        paymentRepository.findById(id)
+                .orElseThrow(() -> new PaymentNotFoundException(id));
+        return historyRepository.findByPaymentId(id);
+    }
+
+    @Override
+    public List<Payment> getPaymentsByStatus(String status) {
+        if (status == null || status.trim().isEmpty()) {
+            throw new com.neueda.exception.ValidationException(
+                    com.neueda.model.ErrorCode.VALIDATION_FAILED,
+                    "Status cannot be null or blank");
+        }
+
+        try {
+            PaymentStatus normalized = PaymentStatus.valueOf(status.trim().toUpperCase());
+            return paymentRepository.findAllByStatus(normalized.name());
+        } catch (IllegalArgumentException ex) {
+            throw new com.neueda.exception.ValidationException(
+                    com.neueda.model.ErrorCode.VALIDATION_FAILED,
+                    "Unsupported payment status: " + status);
+        }
+    }
+
+    @Override
     public List<Payment> getAllPayments() {
         return paymentRepository.findAll();
     }

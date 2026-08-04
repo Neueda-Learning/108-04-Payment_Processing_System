@@ -1,6 +1,7 @@
 package com.neueda.service;
 
 import com.neueda.model.Payment;
+import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
 
 import java.util.List;
@@ -21,6 +22,10 @@ public interface PaymentService {
     Payment transitionStatus(Long id, PaymentStatus targetStatus);
 
     Optional<Payment> getPaymentById(Long id);
+
+    List<PaymentHistory> getPaymentHistory(Long id);
+
+    List<Payment> getPaymentsByStatus(String status);
 
     List<Payment> getAllPayments();
 

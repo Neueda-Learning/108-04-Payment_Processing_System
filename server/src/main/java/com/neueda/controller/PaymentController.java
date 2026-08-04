@@ -8,9 +8,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -27,6 +29,14 @@ public class PaymentController {
     public ResponseEntity<Payment> createPayment(@RequestBody Payment payment) {
         Payment createdPayment = paymentService.createPayment(payment);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPayment);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Payment>> getPayments(@RequestParam(required = false) String status) {
+        List<Payment> payments = status == null || status.isBlank()
+                ? paymentService.getAllPayments()
+                : paymentService.getPaymentsByStatus(status);
+        return ResponseEntity.ok(payments);
     }
 
     @GetMapping("/{id}")

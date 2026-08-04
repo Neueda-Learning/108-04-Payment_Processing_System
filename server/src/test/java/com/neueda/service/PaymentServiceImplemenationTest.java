@@ -154,6 +154,49 @@ class PaymentServiceImplemenationTest {
     }
 
     @Test
+    void getPaymentHistoryReturnsPersistedHistoryForExistingPayment() {
+        Payment saved = service.createPayment(validPayment("idem-history-1"));
+        service.transitionStatus(saved.getId(), PaymentStatus.VALIDATED);
+
+        List<PaymentHistory> history = service.getPaymentHistory(saved.getId());
+
+        assertAll(
+            () -> assertEquals(2, history.size()),
+            () -> assertEquals(PaymentStatus.CREATED.name(), history.getFirst().getToStatus()),
+            () -> assertEquals(PaymentStatus.VALIDATED.name(), history.getLast().getToStatus())
+        );
+    }
+
+    @Test
+    void getPaymentHistoryThrowsWhenPaymentDoesNotExist() {
+        assertThrows(PaymentNotFoundException.class, () -> service.getPaymentHistory(99999L));
+    }
+
+    @Test
+    void getPaymentsByStatusReturnsFilteredPayments() {
+        service.createPayment(validPayment("idem-status-1"));
+        Payment validated = service.createPayment(validPayment("idem-status-2"));
+        service.transitionStatus(validated.getId(), PaymentStatus.VALIDATED);
+
+        List<Payment> createdPayments = service.getPaymentsByStatus("created");
+        List<Payment> validatedPayments = service.getPaymentsByStatus("VALIDATED");
+
+        assertAll(
+            () -> assertEquals(1, createdPayments.size()),
+            () -> assertEquals(1, validatedPayments.size()),
+            () -> assertEquals(PaymentStatus.CREATED.name(), createdPayments.getFirst().getStatus()),
+            () -> assertEquals(PaymentStatus.VALIDATED.name(), validatedPayments.getFirst().getStatus())
+        );
+    }
+
+    @Test
+    void getPaymentsByStatusRejectsNullBlankAndUnsupportedStatuses() {
+        assertThrows(ValidationException.class, () -> service.getPaymentsByStatus(null));
+        assertThrows(ValidationException.class, () -> service.getPaymentsByStatus("   "));
+        assertThrows(ValidationException.class, () -> service.getPaymentsByStatus("UNKNOWN"));
+    }
+
+    @Test
     void getAllPaymentsReturnsRepositoryList() {
         service.createPayment(validPayment("idem-all-1"));
         service.createPayment(validPayment("idem-all-2"));
