@@ -23,7 +23,7 @@ public class PaymentController {
         this.paymentService = paymentService;
     }
 
-    @PostMapping("/")
+    @PostMapping
     public ResponseEntity<Payment> createPayment(@RequestBody Payment payment) {
         Payment createdPayment = paymentService.createPayment(payment);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPayment);
