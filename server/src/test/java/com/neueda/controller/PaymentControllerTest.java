@@ -293,6 +293,11 @@ class PaymentControllerTest {
         public Optional<Payment> getPaymentByIdempotencyKey(String key) {
             return paymentByIdempotencyKey;
         }
+
+        @Override
+        public com.neueda.dto.PaymentStatsResponse getPaymentStats() {
+            throw new UnsupportedOperationException("getPaymentStats is not used in PaymentControllerTest");
+        }
     }
 }
 

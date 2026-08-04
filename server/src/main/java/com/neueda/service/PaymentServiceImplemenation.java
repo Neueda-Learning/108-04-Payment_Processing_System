@@ -9,11 +9,14 @@ import com.neueda.model.PaymentStatus;
 import com.neueda.repository.PaymentHistoryRepository;
 import com.neueda.repository.PaymentRepository;
 import com.neueda.validator.PaymentValidator;
+import com.neueda.dto.PaymentStatsResponse;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 @Service
@@ -153,4 +156,33 @@ public class PaymentServiceImplemenation implements PaymentService {
     public Optional<Payment> getPaymentByIdempotencyKey(String key) {
         return paymentRepository.findByIdempotencyKey(key);
     }
+
+        @Override
+        public PaymentStatsResponse getPaymentStats() {
+        List<Payment> payments = paymentRepository.findAll();
+        long totalPayments = payments.size();
+        long successfulPayments = payments.stream()
+            .filter(payment -> PaymentStatus.COMPLETED.name().equals(payment.getStatus()))
+            .count();
+        long failedPayments = payments.stream()
+            .filter(payment -> PaymentStatus.FAILED.name().equals(payment.getStatus()))
+            .count();
+
+        BigDecimal totalAmount = payments.stream()
+            .map(Payment::getAmount)
+            .filter(amount -> amount != null)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        double successRate = totalPayments == 0 ? 0.0 : (successfulPayments * 100.0) / totalPayments;
+        double failureRate = totalPayments == 0 ? 0.0 : (failedPayments * 100.0) / totalPayments;
+
+        return new PaymentStatsResponse(
+            totalPayments,
+            successfulPayments,
+            failedPayments,
+            totalAmount,
+            successRate,
+            failureRate
+        );
+        }
 }

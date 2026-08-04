@@ -7,6 +7,7 @@ import com.neueda.exception.ValidationException;
 import com.neueda.model.Payment;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
+import com.neueda.dto.PaymentStatsResponse;
 import com.neueda.repository.PaymentHistoryRepository;
 import com.neueda.repository.PaymentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -211,6 +212,25 @@ class PaymentServiceImplemenationTest {
         Optional<Payment> result = service.getPaymentByIdempotencyKey("idem-5");
 
         assertEquals("idem-5", result.orElseThrow().getIdempotencyKey());
+    }
+
+    @Test
+    void getPaymentStatsReturnsAggregatesForPayments() {
+        Payment completed = service.createPayment(validPayment("idem-stats-1"));
+        completed.setStatus(PaymentStatus.COMPLETED.name());
+        paymentRepository.updatePayment(completed);
+
+        Payment failed = service.createPayment(validPayment("idem-stats-2"));
+        service.transitionStatus(failed.getId(), PaymentStatus.FAILED);
+
+        PaymentStatsResponse stats = service.getPaymentStats();
+
+        assertAll(
+            () -> assertEquals(2L, stats.getTotalPayments()),
+            () -> assertEquals(1L, stats.getSuccessfulPayments()),
+            () -> assertEquals(1L, stats.getFailedPayments()),
+            () -> assertEquals(new BigDecimal("100.00"), stats.getTotalAmount())
+        );
     }
 
     private static Payment validPayment(String key) {

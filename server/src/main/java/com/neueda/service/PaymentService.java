@@ -3,6 +3,7 @@ package com.neueda.service;
 import com.neueda.model.Payment;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
+import com.neueda.dto.PaymentStatsResponse;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,5 +31,7 @@ public interface PaymentService {
     List<Payment> getAllPayments();
 
     Optional<Payment> getPaymentByIdempotencyKey(String key);
+
+    PaymentStatsResponse getPaymentStats();
 
 }
