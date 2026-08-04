@@ -1,16 +1,103 @@
-# React + Vite
+# FlashPay Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + Vite frontend for the Payment Processing System.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React
+- React Router
+- Axios
+- Tailwind CSS
+- Vite
 
-## React Compiler
+## Dependencies
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Dependency declarations live in `package.json`.
 
-## Expanding the Oxlint configuration
+### Runtime dependencies
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- `react`
+- `react-dom`
+- `react-router-dom`
+- `axios`
+
+### Development dependencies
+
+- `vite`
+- `@vitejs/plugin-react`
+- `tailwindcss`
+- `@tailwindcss/vite`
+- `oxlint`
+
+Install/update dependencies from `frontend/`:
+
+```bash
+npm install
+```
+
+After dependency changes, run:
+
+```bash
+npm run build
+```
+
+to validate the production bundle.
+
+## Run Locally
+
+From the `frontend/` folder:
+
+```bash
+npm install
+npm run dev
+```
+
+App URL:
+
+```text
+http://localhost:5173
+```
+
+## Scripts
+
+- `npm run dev` - start development server
+- `npm run build` - production build
+- `npm run preview` - preview production build
+- `npm run lint` - run linting
+
+## Routes
+
+- `/` - login page
+- `/home` - landing dashboard page
+- `/payments` - payment creation form
+- `/history` - payment history page
+- `/stats` - payment statistics page
+- `/faq` - FAQ page
+
+## Current Behavior
+
+- Navigation and UI screens are implemented.
+- Payment form currently logs data to console and does not submit to backend yet.
+- History and stats currently use static placeholder data.
+
+## Planned Backend Integration
+
+Expected backend base URL:
+
+```text
+http://localhost:8080
+```
+
+Planned first integration points:
+
+- create payment from `/payments`
+- fetch payment by id for status/details
+- fetch payment list/history for `/history`
+- derive stats from backend payment data
+
+## Folder Guide
+
+- `src/components/` - shared UI components
+- `src/pages/` - route-level pages
+- `src/App.jsx` - router setup
+- `src/index.css` - Tailwind import and global styles
