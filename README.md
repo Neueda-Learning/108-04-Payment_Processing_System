@@ -130,6 +130,6 @@ The following are not fully implemented yet:
 
 - frontend integration with backend APIs (payment form, history, stats currently static/mock)
 - analytics and history based on live backend data
-- API test collection (Postman/Bruno) checked into the repo
+- API test collection (Postman/Bruno) not yet checked into the repo
 
 
