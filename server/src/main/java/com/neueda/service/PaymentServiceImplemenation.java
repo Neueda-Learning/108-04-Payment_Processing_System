@@ -11,6 +11,7 @@ import com.neueda.repository.PaymentRepository;
 import com.neueda.validator.PaymentValidator;
 import com.neueda.dto.PaymentStatsResponse;
 import com.neueda.util.ErrorMessageMapping;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -24,11 +25,20 @@ public class PaymentServiceImplemenation implements PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentHistoryRepository historyRepository;
+    private final PaymentNotificationService notificationService;
 
     public PaymentServiceImplemenation(PaymentRepository paymentRepository,
                                        PaymentHistoryRepository historyRepository) {
+        this(paymentRepository, historyRepository, null);
+    }
+
+    @Autowired
+    public PaymentServiceImplemenation(PaymentRepository paymentRepository,
+                                       PaymentHistoryRepository historyRepository,
+                                       PaymentNotificationService notificationService) {
         this.paymentRepository = paymentRepository;
         this.historyRepository = historyRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -67,13 +77,14 @@ public class PaymentServiceImplemenation implements PaymentService {
                     .orElseThrow(() -> ex);
             throw new DuplicatePaymentException(payment.getIdempotencyKey(), alreadySaved.getId());
         }
-        historyRepository.save(new PaymentHistory(
+        PaymentHistory history = historyRepository.save(new PaymentHistory(
                 saved.getId(),
                 null,               // no previous status
                 PaymentStatus.CREATED.name(),
                 LocalDateTime.now(),
                 "Payment created"
         ));
+        notifyPaymentUpdate(saved, history);
 
         return saved;
     }
@@ -104,7 +115,7 @@ public class PaymentServiceImplemenation implements PaymentService {
         paymentRepository.updateStatus(id, targetStatus.name());
 
         // 4. Record audit trail
-        historyRepository.save(new PaymentHistory(
+        PaymentHistory history = historyRepository.save(new PaymentHistory(
                 id,
                 currentStatus.name(),
                 targetStatus.name(),
@@ -114,6 +125,7 @@ public class PaymentServiceImplemenation implements PaymentService {
 
         // Return the refreshed payment
         payment.setStatus(targetStatus.name());
+        notifyPaymentUpdate(payment, history);
         return payment;
     }
 
@@ -219,7 +231,7 @@ public class PaymentServiceImplemenation implements PaymentService {
                 ? technicalReason + " | User message: " + userFriendlyMessage
                 : userFriendlyMessage;
         
-        historyRepository.save(new PaymentHistory(
+        PaymentHistory history = historyRepository.save(new PaymentHistory(
                 paymentId,
                 currentStatus.name(),
                 PaymentStatus.FAILED.name(),
@@ -232,7 +244,14 @@ public class PaymentServiceImplemenation implements PaymentService {
         payment.setErrorCode(errorCodeString);
         payment.setDescription(userFriendlyMessage);
         payment.setUpdatedAt(LocalDateTime.now());
+        notifyPaymentUpdate(payment, history);
         
         return payment;
+    }
+
+    private void notifyPaymentUpdate(Payment payment, PaymentHistory history) {
+        if (notificationService != null) {
+            notificationService.sendPaymentUpdate(payment, history);
+        }
     }
 }
