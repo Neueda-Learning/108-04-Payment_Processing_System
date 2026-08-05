@@ -13,7 +13,15 @@ class PaymentTest {
 
     @Test
     void partialConstructorLeavesAuditFieldsUnset() {
-        Payment payment = new Payment(10L, new BigDecimal("125.50"), "CREATED", "SRC12345", "DST12345", "idem-10");
+       Payment payment = new Payment(
+    10L,
+    new BigDecimal("125.50"),
+    "CREATED",
+    "SRC12345",
+    "DST12345",
+    "idem-10",
+    "Test payment"
+);
 
         assertAll(
             () -> assertEquals(10L, payment.getId()),
@@ -35,17 +43,18 @@ class PaymentTest {
         LocalDateTime updatedAt = createdAt.plusMinutes(5);
 
         Payment payment = new Payment(
-            20L,
-            new BigDecimal("300.00"),
-            "FAILED",
-            "SRC67890",
-            "DST67890",
-            "idem-20",
-            createdAt,
-            updatedAt,
-            "USD",
-            ErrorCode.PROCESSING_ERROR.name()
-        );
+    20L,
+    new BigDecimal("300.00"),
+    "FAILED",
+    "SRC67890",
+    "DST67890",
+    "idem-20",
+    createdAt,
+    updatedAt,
+    "USD",
+    ErrorCode.PROCESSING_ERROR.name(),
+    "Payment failed"
+);
 
         assertAll(
             () -> assertEquals(20L, payment.getId()),
