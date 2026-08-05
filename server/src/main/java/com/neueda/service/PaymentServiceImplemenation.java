@@ -3,9 +3,13 @@ package com.neueda.service;
 import com.neueda.exception.DuplicatePaymentException;
 import com.neueda.exception.InvalidStatusTransitionException;
 import com.neueda.exception.PaymentNotFoundException;
+import com.neueda.exception.ValidationException;
+import com.neueda.model.Account;
+import com.neueda.model.ErrorCode;
 import com.neueda.model.Payment;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
+import com.neueda.repository.AccountRepository;
 import com.neueda.repository.PaymentHistoryRepository;
 import com.neueda.repository.PaymentRepository;
 import com.neueda.validator.PaymentValidator;
@@ -13,6 +17,7 @@ import com.neueda.dto.PaymentStatsResponse;
 import com.neueda.util.ErrorMessageMapping;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,19 +30,22 @@ public class PaymentServiceImplemenation implements PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentHistoryRepository historyRepository;
+    private final AccountRepository accountRepository;
     private final PaymentNotificationService notificationService;
 
     public PaymentServiceImplemenation(PaymentRepository paymentRepository,
                                        PaymentHistoryRepository historyRepository) {
-        this(paymentRepository, historyRepository, null);
+        this(paymentRepository, historyRepository, null, null);
     }
 
     @Autowired
     public PaymentServiceImplemenation(PaymentRepository paymentRepository,
                                        PaymentHistoryRepository historyRepository,
+                                       AccountRepository accountRepository,
                                        PaymentNotificationService notificationService) {
         this.paymentRepository = paymentRepository;
         this.historyRepository = historyRepository;
+        this.accountRepository = accountRepository;
         this.notificationService = notificationService;
     }
 
@@ -99,6 +107,7 @@ public class PaymentServiceImplemenation implements PaymentService {
      * 4. A history entry is written for every successful transition.
      */
     @Override
+      @Transactional
     public Payment transitionStatus(Long id, PaymentStatus targetStatus) {
 
         // 1. Load payment — throw 404 if not found
@@ -109,6 +118,11 @@ public class PaymentServiceImplemenation implements PaymentService {
         PaymentStatus currentStatus = PaymentStatus.valueOf(payment.getStatus());
         if (!currentStatus.canTransitionTo(targetStatus)) {
             throw new InvalidStatusTransitionException(currentStatus, targetStatus);
+        }
+
+        // Funds are moved only at settlement time.
+        if (targetStatus == PaymentStatus.COMPLETED) {
+            applyAccountTransfer(payment);
         }
 
         // 3. Persist the new status
@@ -127,6 +141,46 @@ public class PaymentServiceImplemenation implements PaymentService {
         payment.setStatus(targetStatus.name());
         notifyPaymentUpdate(payment, history);
         return payment;
+    }
+
+    private void applyAccountTransfer(Payment payment) {
+        if (accountRepository == null) {
+            throw new ValidationException(ErrorCode.PROCESSING_ERROR,
+                    "Account repository is not configured");
+        }
+
+        Account sourceAccount = accountRepository.findByAccountNumber(payment.getSourceAccount())
+                .orElseThrow(() -> new ValidationException(
+                        ErrorCode.INVALID_ACCOUNT,
+                        "Source account not found: " + payment.getSourceAccount()));
+
+        Account destinationAccount = accountRepository.findByAccountNumber(payment.getDestinationAccount())
+                .orElseThrow(() -> new ValidationException(
+                        ErrorCode.INVALID_ACCOUNT,
+                        "Destination account not found: " + payment.getDestinationAccount()));
+
+        if (!"ACTIVE".equalsIgnoreCase(sourceAccount.getStatus()) ||
+                !"ACTIVE".equalsIgnoreCase(destinationAccount.getStatus())) {
+            throw new ValidationException(ErrorCode.INVALID_ACCOUNT, "Both accounts must be ACTIVE");
+        }
+
+        if (!payment.getCurrency().equalsIgnoreCase(sourceAccount.getAccountCurrencyType()) ||
+                !payment.getCurrency().equalsIgnoreCase(destinationAccount.getAccountCurrencyType())) {
+            throw new ValidationException(ErrorCode.INVALID_CURRENCY,
+                    "Payment currency must match source and destination account currencies");
+        }
+
+        int debitedRows = accountRepository.debitBalance(sourceAccount.getAccountNumber(), payment.getAmount());
+        if (debitedRows == 0) {
+            throw new ValidationException(ErrorCode.INSUFFICIENT_FUNDS,
+                    "Insufficient funds in source account: " + sourceAccount.getAccountNumber());
+        }
+
+        int creditedRows = accountRepository.creditBalance(destinationAccount.getAccountNumber(), payment.getAmount());
+        if (creditedRows == 0) {
+            throw new ValidationException(ErrorCode.INVALID_ACCOUNT,
+                    "Destination account not found for credit: " + destinationAccount.getAccountNumber());
+        }
     }
 
     @Override

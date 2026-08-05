@@ -99,6 +99,16 @@ class AccountServiceImplementationTest {
         public List<Account> findAll() {
             return allAccounts;
         }
+
+        @Override
+        public int debitBalance(String accountNumber, BigDecimal amount) {
+            throw new UnsupportedOperationException("Not used by AccountServiceImplementationTest");
+        }
+
+        @Override
+        public int creditBalance(String accountNumber, BigDecimal amount) {
+            throw new UnsupportedOperationException("Not used by AccountServiceImplementationTest");
+        }
     }
 }
 
