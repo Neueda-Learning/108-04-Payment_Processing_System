@@ -1,6 +1,10 @@
 import { useState } from "react";
 import axios from "axios";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { useNavigate } from "react-router-dom";
 function PaymentsPage() {
+  const navigate = useNavigate();
 
   const [payment, setPayment] = useState({
     amount: "",
@@ -18,54 +22,98 @@ function PaymentsPage() {
 
 
 
-const handleSubmit = async () => {
+  const handleSubmit = async () => {
+    try {
+      const accountResponse = await axios.get(
+        `http://localhost:8080/accounts/${payment.destinationAccount}`
+      );
 
-  try {
+      const destinationAccount = accountResponse.data;
+      const paymentRequest = {
+        amount: payment.amount,
+        status: "CREATED",
+        sourceAccount: localStorage.getItem("account"),
+        destinationAccount: payment.destinationAccount,
+        idempotencyKey: `idem-${Date.now()}`,
+        description: payment.summary,
+        currency: destinationAccount.accountCurrencyType,
+      };
 
-    // fetch destination account details
-    const accountResponse = await axios.get(
-      `http://localhost:8080/accounts/${payment.destinationAccount}`
-    );
+      const client = new Client({
+        webSocketFactory: () => new SockJS("http://localhost:8080/ws"),
+        onConnect: async () => {
+          console.log("socket connected");
 
-    const destinationAccount = accountResponse.data;
+          client.subscribe(`/topic/payment/${paymentRequest.idempotencyKey}`, (message) => {
+            const event = JSON.parse(message.body);
+            console.log("Payment event:", event);
 
-    // create payment object
-    const paymentRequest = {
-      amount: payment.amount,
-      status: "CREATED",
-      sourceAccount: localStorage.getItem("account"),
-      destinationAccount: payment.destinationAccount,
-      idempotencyKey: "idem-" + Date.now(),
-      description: payment.summary,
-      currency: destinationAccount.accountCurrencyType
-    };
+            if (event.status === "CREATED") {
+              const paymentId = event.paymentId ?? event.id ?? paymentRequest.idempotencyKey;
 
+              localStorage.setItem(
+                "flashpay-active-payment",
+                JSON.stringify({
+                  paymentId,
+                  paymentTrackingKey: paymentRequest.idempotencyKey,
+                  status: event.status,
+                  amount: paymentRequest.amount,
+                  destinationAccount: paymentRequest.destinationAccount,
+                  summary: paymentRequest.description,
+                  currency: paymentRequest.currency,
+                })
+              );
 
-    // send payment
-    const response = await axios.post(
-      "http://localhost:8080/payments/",
-      paymentRequest
-    );
+              navigate("/payment-progress", {
+                state: {
+                  paymentId,
+                  paymentTrackingKey: paymentRequest.idempotencyKey,
+                  initialStatus: event.status,
+                  amount: paymentRequest.amount,
+                  destinationAccount: paymentRequest.destinationAccount,
+                  summary: paymentRequest.description,
+                  currency: paymentRequest.currency,
+                },
+              });
 
-    console.log("Payment successful:", response.data);
+              client.deactivate();
+            }
+          });
 
-    alert("Payment completed successfully");
+          try {
+            const response = await axios.post("http://localhost:8080/payments/", {
+              ...paymentRequest,
+            });
 
+            console.log("Payment initiated:", response.data);
+          } catch (error) {
+            console.error("Payment request failed:", error);
+            client.deactivate();
 
-  } catch (error) {
+            if (error.response?.status === 404) {
+              alert("Destination account does not exist");
+            } else {
+              alert("Payment failed");
+            }
+          }
+        },
+        onStompError: (frame) => {
+          console.error("Socket error:", frame);
+          client.deactivate();
+        },
+      });
 
-    console.error("Payment failed:", error);
+      client.activate();
+    } catch (error) {
+      console.error("Setup failed:", error);
 
-    if(error.response?.status === 404){
-      alert("Destination account does not exist");
+      if (error.response?.status === 404) {
+        alert("Destination account does not exist");
+      } else {
+        alert("Payment failed");
+      }
     }
-    else{
-      alert("Payment failed");
-    }
-
-  }
-
-};
+  };
 
 
   return (
