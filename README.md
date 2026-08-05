@@ -1,7 +1,7 @@
 # FlashPay Payment Processing System
 
 Payment Processing System built by Room 108 Group 4.
-Jira Board: <https://barmyarmyjira.atlassian.net/ continue=https%3A%2F%2Fbarmyarmyjira.atlassian.net%2Fwelcome%2Fsoftware%3FprojectId%3D10000&atlOrigin=eyJpIjoiYjQ4NTM0MDNiN2MwNGZlMWJkYmVhODZmNzg1NjQ3NzkiLCJwIjoiamlyYS1zb2Z0d2FyZSJ9>
+Jira Board: <https://barmyarmyjira.atlassian.net/continue=https%3A%2F%2Fbarmyarmyjira.atlassian.net%2Fwelcome%2Fsoftware%3FprojectId%3D10000&atlOrigin=eyJpIjoiYjQ4NTM0MDNiN2MwNGZlMWJkYmVhODZmNzg1NjQ3NzkiLCJwIjoiamlyYS1zb2Z0d2FyZSJ9>
 
 ## Project Structure
 
