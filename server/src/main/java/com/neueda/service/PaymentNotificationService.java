@@ -25,7 +25,9 @@ public class PaymentNotificationService {
                 payment.getErrorCode()
         );
 
-        messagingTemplate.convertAndSend("/topic/payments", event);
-        messagingTemplate.convertAndSend("/topic/payments/" + history.getPaymentId(), event);
+        messagingTemplate.convertAndSend("/topic/payment/" + history.getPaymentId(), event);
+        if (payment.getIdempotencyKey() != null) {
+            messagingTemplate.convertAndSend("/topic/payment/" + payment.getIdempotencyKey(), event);
+        }
     }
 }

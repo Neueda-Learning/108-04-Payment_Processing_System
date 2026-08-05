@@ -43,6 +43,10 @@ public class PaymentEvent {
         return toStatus;
     }
 
+    public String getStatus() {
+        return toStatus;
+    }
+
     public void setToStatus(String toStatus) {
         this.toStatus = toStatus;
     }
