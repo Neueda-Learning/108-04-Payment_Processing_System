@@ -72,6 +72,25 @@ docker compose up -d
 
 ## Implemented Endpoints
 
+### Payment Lifecycle Summary
+
+- Pending states: `CREATED`, `VALIDATED`, `SENT`
+- Success state: `COMPLETED`
+- Failure state: `FAILED`
+
+Expected happy-path flow:
+
+```text
+CREATED -> VALIDATED -> SENT -> COMPLETED
+```
+
+A payment may also move to `FAILED` from any non-terminal pending state. When that happens, the backend stores both:
+
+- a technical `error_code`
+- a user-friendly message in `description`
+
+Every transition is recorded in `payment_history` for audit and frontend live-status display.
+
 ### Create Payment
 
 - Method: `POST`
@@ -82,13 +101,17 @@ Request example:
 ```json
 {
   "amount": 125.50,
-  "status": "CREATED",
   "sourceAccount": "ACC001",
   "destinationAccount": "ACC002",
   "idempotencyKey": "idem-001",
   "currency": "USD"
 }
 ```
+
+Notes:
+
+- The backend always initializes the payment status as `CREATED`.
+- Any status sent by the client on create is ignored.
 
 Responses: `201` created payment, `400` validation error, `409` duplicate idempotency key.
 
@@ -126,6 +149,35 @@ Request example:
 ```
 
 Responses: `200` updated payment, `400` invalid/unsupported status or illegal lifecycle transition, `404` payment not found.
+
+### Fail Payment
+
+- Method: `PUT`
+- Path: `/payments/{id}/fail`
+
+Request example:
+
+```json
+{
+  "errorCode": "INSUFFICIENT_FUNDS",
+  "technicalReason": "Account balance is below the requested amount"
+}
+```
+
+Behavior:
+
+- sets payment status to `FAILED`
+- saves the `errorCode`
+- saves a non-technical, user-friendly message in `description`
+- writes a `payment_history` entry with failure details
+
+Typical user-friendly failure message example:
+
+```text
+Your account doesn't have enough funds to complete this payment. Please verify your account balance and try with a lower amount.
+```
+
+Responses: `200` failed payment details, `400` invalid request or illegal lifecycle transition, `404` payment not found.
 
 ### Get Payment History
 
@@ -182,6 +234,7 @@ Returns aggregate counts and rates:
 - `updated_at`
 - `currency`
 - `error_code`
+- `description` (stores user-friendly failure reason)
 
 ### `payment_history`
 
@@ -215,6 +268,28 @@ Run tests:
 ```
 
 Coverage includes controller (MockMvc), service (lifecycle, validation, stats), and repository (JDBC) layers for payments, payment history, and accounts, plus global exception handling.
+
+## Demo Flow
+
+Minimal lifecycle demonstration:
+
+```text
+POST /payments
+PUT /payments/{id}/status   { "status": "VALIDATED" }
+PUT /payments/{id}/status   { "status": "SENT" }
+PUT /payments/{id}/status   { "status": "COMPLETED" }
+GET /payments/{id}/history
+```
+
+Failure demonstration:
+
+```text
+POST /payments
+PUT /payments/{id}/status   { "status": "VALIDATED" }
+PUT /payments/{id}/fail     { "errorCode": "INSUFFICIENT_FUNDS", "technicalReason": "..." }
+GET /payments/{id}
+GET /payments/{id}/history
+```
 
 ## Known Gaps
 

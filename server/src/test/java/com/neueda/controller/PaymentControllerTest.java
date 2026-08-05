@@ -331,6 +331,11 @@ class PaymentControllerTest {
         public com.neueda.dto.PaymentStatsResponse getPaymentStats() {
             throw new UnsupportedOperationException("getPaymentStats is not used in PaymentControllerTest");
         }
+
+        @Override
+        public Payment failPayment(Long paymentId, String errorCode, String technicalReason) {
+            throw new UnsupportedOperationException("failPayment is not used in PaymentControllerTest");
+        }
     }
 }
 

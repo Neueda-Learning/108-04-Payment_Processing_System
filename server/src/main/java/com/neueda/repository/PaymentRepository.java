@@ -17,6 +17,15 @@ public interface PaymentRepository {
         void updateStatus(Long id, String status);
         
         void updatePayment(Payment payment);
+
+        /**
+         * Update a payment with error details (error code and user-friendly message).
+         * 
+         * @param id The payment ID
+         * @param errorCode The error code
+         * @param userFriendlyMessage The user-friendly error message
+         */
+        void updatePaymentWithError(Long id, String errorCode, String userFriendlyMessage);
     
 }
 

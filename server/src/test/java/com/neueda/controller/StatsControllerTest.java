@@ -89,5 +89,10 @@ class StatsControllerTest {
         public PaymentStatsResponse getPaymentStats() {
             return stats;
         }
+
+        @Override
+        public com.neueda.model.Payment failPayment(Long paymentId, String errorCode, String technicalReason) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

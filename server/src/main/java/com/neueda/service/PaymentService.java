@@ -34,4 +34,17 @@ public interface PaymentService {
 
     PaymentStatsResponse getPaymentStats();
 
+    /**
+     * Fail a payment with a specific error code and optional technical reason.
+     * Automatically generates a user-friendly error message based on the error code.
+     * 
+     * @param paymentId The ID of the payment to fail
+     * @param errorCode The error code indicating the failure reason
+     * @param technicalReason Optional technical error reason (for logging/debugging)
+     * @return The failed payment with error details
+     * @throws PaymentNotFoundException if payment doesn't exist
+     * @throws InvalidStatusTransitionException if payment cannot transition to FAILED
+     */
+    Payment failPayment(Long paymentId, String errorCode, String technicalReason);
+
 }
