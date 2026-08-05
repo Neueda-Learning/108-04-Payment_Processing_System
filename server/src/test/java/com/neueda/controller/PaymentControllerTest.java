@@ -333,6 +333,11 @@ class PaymentControllerTest {
         }
 
         @Override
+        public com.neueda.dto.DashboardStatsResponse getDashboardStats(java.time.LocalDate from, java.time.LocalDate to) {
+            throw new UnsupportedOperationException("getDashboardStats is not used in PaymentControllerTest");
+        }
+
+        @Override
         public Payment failPayment(Long paymentId, String errorCode, String technicalReason) {
             throw new UnsupportedOperationException("failPayment is not used in PaymentControllerTest");
         }

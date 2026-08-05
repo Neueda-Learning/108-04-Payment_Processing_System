@@ -8,6 +8,7 @@ import com.neueda.model.Payment;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
 import com.neueda.dto.PaymentStatsResponse;
+import com.neueda.dto.DashboardStatsResponse;
 import com.neueda.repository.PaymentHistoryRepository;
 import com.neueda.repository.PaymentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,9 +16,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -243,6 +248,111 @@ class PaymentServiceImplemenationTest {
         return payment;
     }
 
+    private Payment savePaymentWithCreatedAt(String currency, String status, String errorCode, LocalDateTime createdAt) {
+        Payment payment = validPayment("idem-dash-" + System.nanoTime());
+        payment.setCurrency(currency);
+        Payment saved = paymentRepository.save(payment);
+        saved.setStatus(status);
+        saved.setErrorCode(errorCode);
+        saved.setCreatedAt(createdAt);
+        paymentRepository.updatePayment(saved);
+        return saved;
+    }
+
+    @Nested
+    class GetDashboardStats {
+
+        @Test
+        void aggregatesStatusCurrencyAndFailureSections() {
+            LocalDate day = LocalDate.of(2026, 8, 1);
+            LocalDateTime createdAt = day.atTime(10, 0);
+
+            savePaymentWithCreatedAt("USD", PaymentStatus.COMPLETED.name(), null, createdAt);
+            savePaymentWithCreatedAt("EUR", PaymentStatus.FAILED.name(), "INSUFFICIENT_FUNDS", createdAt);
+            savePaymentWithCreatedAt("USD", PaymentStatus.CREATED.name(), null, createdAt);
+
+            DashboardStatsResponse stats = service.getDashboardStats(day, day);
+
+            assertEquals(day, stats.getFrom());
+            assertEquals(day, stats.getTo());
+
+            Map<String, Long> statusCounts = stats.getStatusDistribution().stream()
+                    .collect(Collectors.toMap(DashboardStatsResponse.StatusCount::status,
+                            DashboardStatsResponse.StatusCount::count));
+            assertEquals(1L, statusCounts.get(PaymentStatus.COMPLETED.name()));
+            assertEquals(1L, statusCounts.get(PaymentStatus.FAILED.name()));
+            assertEquals(1L, statusCounts.get(PaymentStatus.CREATED.name()));
+
+            Map<String, Long> currencyCounts = stats.getCurrencyBreakdown().stream()
+                    .collect(Collectors.toMap(DashboardStatsResponse.CurrencyBreakdown::currency,
+                            DashboardStatsResponse.CurrencyBreakdown::count));
+            assertEquals(2L, currencyCounts.get("USD"));
+            assertEquals(1L, currencyCounts.get("EUR"));
+
+            assertEquals(1, stats.getFailureReasons().size());
+            assertEquals("INSUFFICIENT_FUNDS", stats.getFailureReasons().get(0).errorCode());
+            assertEquals(1L, stats.getFailureReasons().get(0).count());
+
+            assertEquals(1, stats.getVolumeOverTime().size());
+            assertEquals(3, stats.getVolumeOverTime().get(0).count());
+        }
+
+        @Test
+        void unknownErrorCodeBucketedAsUnknown() {
+            LocalDate day = LocalDate.of(2026, 8, 2);
+            savePaymentWithCreatedAt("USD", PaymentStatus.FAILED.name(), null, day.atTime(9, 0));
+
+            DashboardStatsResponse stats = service.getDashboardStats(day, day);
+
+            assertEquals("UNKNOWN", stats.getFailureReasons().get(0).errorCode());
+        }
+
+        @Test
+        void computesAverageStageDurationFromHistory() {
+            LocalDateTime t0 = LocalDate.of(2026, 8, 3).atTime(8, 0);
+            Long paymentId = savePaymentWithCreatedAt("USD", PaymentStatus.COMPLETED.name(), null, t0).getId();
+
+            historyRepository.save(new PaymentHistory(paymentId, null, PaymentStatus.CREATED.name(), t0, "created"));
+            historyRepository.save(new PaymentHistory(paymentId, PaymentStatus.CREATED.name(),
+                    PaymentStatus.VALIDATED.name(), t0.plusSeconds(10), "validated"));
+            historyRepository.save(new PaymentHistory(paymentId, PaymentStatus.VALIDATED.name(),
+                    PaymentStatus.SENT.name(), t0.plusSeconds(30), "sent"));
+            historyRepository.save(new PaymentHistory(paymentId, PaymentStatus.SENT.name(),
+                    PaymentStatus.COMPLETED.name(), t0.plusSeconds(90), "completed"));
+
+            DashboardStatsResponse stats = service.getDashboardStats(LocalDate.of(2026, 8, 3), LocalDate.of(2026, 8, 3));
+
+            Map<String, Double> stageDurations = stats.getAvgStageDuration().stream()
+                    .collect(Collectors.toMap(DashboardStatsResponse.StageDuration::stage,
+                            DashboardStatsResponse.StageDuration::avgSeconds));
+
+            assertEquals(10.0, stageDurations.get("CREATED_TO_VALIDATED"));
+            assertEquals(20.0, stageDurations.get("VALIDATED_TO_SENT"));
+            assertEquals(60.0, stageDurations.get("SENT_TO_COMPLETED"));
+            assertEquals(0.0, stageDurations.get("SENT_TO_FAILED"));
+        }
+
+        @Test
+        void excludesPaymentsOutsideDateRange() {
+            savePaymentWithCreatedAt("USD", PaymentStatus.COMPLETED.name(), null,
+                    LocalDate.of(2026, 1, 1).atTime(12, 0));
+
+            DashboardStatsResponse stats = service.getDashboardStats(
+                    LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 2));
+
+            assertEquals(0, stats.getStatusDistribution().size());
+            assertEquals(0, stats.getVolumeOverTime().size());
+        }
+
+        @Test
+        void defaultsToLast30DaysWhenNoRangeProvided() {
+            DashboardStatsResponse stats = service.getDashboardStats(null, null);
+
+            assertEquals(LocalDate.now(), stats.getTo());
+            assertEquals(LocalDate.now().minusDays(30), stats.getFrom());
+        }
+    }
+
     private static class InMemoryPaymentRepository implements PaymentRepository {
         private final List<Payment> store = new ArrayList<>();
         private long nextId = 1L;
@@ -310,6 +420,11 @@ class PaymentServiceImplemenationTest {
                     .filter(h -> paymentId.equals(h.getPaymentId()))
                     .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))  // Most recent first
                     .toList();
+        }
+
+        @Override
+        public List<PaymentHistory> findAll() {
+            return List.copyOf(saved);
         }
     }
 }

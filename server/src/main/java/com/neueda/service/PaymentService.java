@@ -4,7 +4,9 @@ import com.neueda.model.Payment;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
 import com.neueda.dto.PaymentStatsResponse;
+import com.neueda.dto.DashboardStatsResponse;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +35,14 @@ public interface PaymentService {
     Optional<Payment> getPaymentByIdempotencyKey(String key);
 
     PaymentStatsResponse getPaymentStats();
+
+    /**
+     * Aggregate dashboard analytics (status distribution, volume over time, failure
+     * reasons, average time per lifecycle stage, success rate over time, currency
+     * breakdown) for payments created within [from, to]. When either bound is null,
+     * defaults to the last 30 days.
+     */
+    DashboardStatsResponse getDashboardStats(LocalDate from, LocalDate to);
 
     /**
      * Fail a payment with a specific error code and optional technical reason.

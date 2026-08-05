@@ -1,6 +1,7 @@
 package com.neueda.controller;
 
 import com.neueda.dto.PaymentStatsResponse;
+import com.neueda.dto.DashboardStatsResponse;
 import com.neueda.service.PaymentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,8 +50,56 @@ class StatsControllerTest {
                 .andExpect(jsonPath("$.failureRate").value(20.0));
     }
 
+    @Test
+    void getDashboardStatsReturnsAggregatedSections() throws Exception {
+        LocalDate from = LocalDate.of(2026, 8, 1);
+        LocalDate to = LocalDate.of(2026, 8, 5);
+
+        paymentService.dashboardStats = new DashboardStatsResponse(
+                from,
+                to,
+                List.of(new DashboardStatsResponse.StatusCount("COMPLETED", 3L)),
+                List.of(new DashboardStatsResponse.VolumePoint(from, 3L, new BigDecimal("150.00"))),
+                List.of(new DashboardStatsResponse.FailureReasonCount("INSUFFICIENT_FUNDS", 1L)),
+                List.of(new DashboardStatsResponse.StageDuration("CREATED_TO_VALIDATED", 12.5)),
+                List.of(new DashboardStatsResponse.SuccessRatePoint(from, 100.0)),
+                List.of(new DashboardStatsResponse.CurrencyBreakdown("USD", 3L, new BigDecimal("150.00")))
+        );
+
+        mockMvc.perform(get("/stats/dashboard").param("from", from.toString()).param("to", to.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.from").value(from.toString()))
+                .andExpect(jsonPath("$.to").value(to.toString()))
+                .andExpect(jsonPath("$.statusDistribution[0].status").value("COMPLETED"))
+                .andExpect(jsonPath("$.statusDistribution[0].count").value(3))
+                .andExpect(jsonPath("$.volumeOverTime[0].count").value(3))
+                .andExpect(jsonPath("$.failureReasons[0].errorCode").value("INSUFFICIENT_FUNDS"))
+                .andExpect(jsonPath("$.avgStageDuration[0].stage").value("CREATED_TO_VALIDATED"))
+                .andExpect(jsonPath("$.successRateOverTime[0].successRate").value(100.0))
+                .andExpect(jsonPath("$.currencyBreakdown[0].currency").value("USD"));
+    }
+
+    @Test
+    void getDashboardStatsWithoutParamsDelegatesWithNullRange() throws Exception {
+        paymentService.dashboardStats = new DashboardStatsResponse(
+                LocalDate.now().minusDays(30),
+                LocalDate.now(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
+        );
+
+        mockMvc.perform(get("/stats/dashboard"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusDistribution").isEmpty());
+    }
+
     private static class StubPaymentService implements PaymentService {
         private PaymentStatsResponse stats;
+        private DashboardStatsResponse dashboardStats;
 
         @Override
         public com.neueda.model.Payment createPayment(com.neueda.model.Payment payment) {
@@ -88,6 +139,11 @@ class StatsControllerTest {
         @Override
         public PaymentStatsResponse getPaymentStats() {
             return stats;
+        }
+
+        @Override
+        public com.neueda.dto.DashboardStatsResponse getDashboardStats(java.time.LocalDate from, java.time.LocalDate to) {
+            return dashboardStats;
         }
 
         @Override
