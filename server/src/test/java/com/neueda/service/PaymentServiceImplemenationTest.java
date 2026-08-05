@@ -284,6 +284,15 @@ class PaymentServiceImplemenationTest {
             store.removeIf(existing -> payment.getId().equals(existing.getId()));
             store.add(payment);
         }
+
+        @Override
+        public void updatePaymentWithError(Long id, String errorCode, String userFriendlyMessage) {
+            findById(id).ifPresent(payment -> {
+                payment.setStatus(PaymentStatus.FAILED.name());
+                payment.setErrorCode(errorCode);
+                payment.setDescription(userFriendlyMessage);
+            });
+        }
     }
 
     private static class InMemoryHistoryRepository implements PaymentHistoryRepository {
@@ -297,7 +306,10 @@ class PaymentServiceImplemenationTest {
 
         @Override
         public List<PaymentHistory> findByPaymentId(Long paymentId) {
-            return saved.stream().filter(h -> paymentId.equals(h.getPaymentId())).toList();
+            return saved.stream()
+                    .filter(h -> paymentId.equals(h.getPaymentId()))
+                    .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))  // Most recent first
+                    .toList();
         }
     }
 }

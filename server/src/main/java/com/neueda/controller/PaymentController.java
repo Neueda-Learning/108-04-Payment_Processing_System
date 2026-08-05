@@ -1,6 +1,7 @@
 package com.neueda.controller;
 
 import com.neueda.dto.UpdatePaymentStatusRequest;
+import com.neueda.dto.FailPaymentRequest;
 import com.neueda.exception.ValidationException;
 import com.neueda.model.ErrorCode;
 import com.neueda.model.Payment;
@@ -80,6 +81,16 @@ public class PaymentController {
         Optional<Payment> payment = paymentService.getPaymentById(id);
         return payment.map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/fail")
+    public ResponseEntity<Payment> failPayment(@PathVariable Long id,
+                                               @RequestBody FailPaymentRequest request) {
+        if (request == null || request.getErrorCode() == null || request.getErrorCode().isBlank()) {
+            throw new ValidationException(ErrorCode.VALIDATION_FAILED, "Error code cannot be null or blank");
+        }
+
+        return ResponseEntity.ok(paymentService.failPayment(id, request.getErrorCode(), request.getTechnicalReason()));
     }
 }
 

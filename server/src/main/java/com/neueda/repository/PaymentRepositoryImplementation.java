@@ -1,6 +1,7 @@
 package com.neueda.repository;
 
 import com.neueda.model.Payment;
+import com.neueda.model.PaymentStatus;
 import org.springframework.jdbc.core.*;
 import org.springframework.jdbc.support.*;
 import org.springframework.stereotype.Repository;
@@ -155,6 +156,21 @@ System.out.println("Executing SQL: " + sql);
             payment.getErrorCode(),
             java.sql.Timestamp.valueOf(LocalDateTime.now()),
             payment.getId()
+        );
+    }
+
+    public void updatePaymentWithError(Long id, String errorCode, String userFriendlyMessage) {
+        String sql = """
+            UPDATE payments 
+            SET status = ?, error_code = ?, description = ?, updated_at = ?
+            WHERE id = ?
+        """;
+        jdbc.update(sql,
+            PaymentStatus.FAILED.name(),
+            errorCode,
+            userFriendlyMessage,
+            java.sql.Timestamp.valueOf(LocalDateTime.now()),
+            id
         );
     }
    

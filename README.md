@@ -28,7 +28,7 @@ Install/update dependencies inside each module folder rather than from repositor
 
 ## Current State
 
-- Backend: full payment lifecycle API (create, list/filter, status transitions, history, idempotency lookup, stats)
+- Backend: full payment lifecycle API (create, list/filter, status transitions, failure handling, history, idempotency lookup, stats)
 - Frontend: complete page flow and navigation, currently mock-data driven
 - Chatbot: working FAQ retrieval + LLM answer generation with fallback
 - Validation framework: implemented and fully wired (error codes, validator, exception handling)
@@ -94,19 +94,37 @@ Without a Gemini key, the chatbot still works using FAQ fallback responses.
 - `GET /payments` - list payments (optional `status` filter)
 - `GET /payments/{id}` - fetch payment by id
 - `PUT /payments/{id}/status` - transition payment status
+- `PUT /payments/{id}/fail` - fail a payment with an error code and user-friendly message
 - `GET /payments/{id}/history` - fetch payment audit history
 - `GET /payments/idempotency/{key}` - fetch payment by idempotency key
 - `GET /stats/payments` - aggregate payment stats (counts, totals, success/failure rate)
+
+### Payment lifecycle states
+
+- Pending: `CREATED`, `VALIDATED`, `SENT`
+- Success: `COMPLETED`
+- Failed: `FAILED`
+
+The backend now records each transition in `payment_history` and stores a user-friendly failure message when a payment is failed.
 
 Example create request:
 
 ```json
 {
 	"amount": 125.50,
-	"status": "CREATED",
 	"sourceAccount": "ACC001",
 	"destinationAccount": "ACC002",
-	"idempotencyKey": "idem-001"
+	"idempotencyKey": "idem-001",
+	"currency": "USD"
+}
+```
+
+Example fail request:
+
+```json
+{
+	"errorCode": "INSUFFICIENT_FUNDS",
+	"technicalReason": "Account balance is below the requested payment amount"
 }
 ```
 

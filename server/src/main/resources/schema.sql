@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     currency VARCHAR(3),
-    error_code VARCHAR(50)
+    error_code VARCHAR(50),
+    description VARCHAR(500)
 );
 
 -- Payment History Table for Audit Trail

@@ -10,6 +10,7 @@ import com.neueda.repository.PaymentHistoryRepository;
 import com.neueda.repository.PaymentRepository;
 import com.neueda.validator.PaymentValidator;
 import com.neueda.dto.PaymentStatsResponse;
+import com.neueda.util.ErrorMessageMapping;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -184,4 +185,54 @@ public class PaymentServiceImplemenation implements PaymentService {
             failureRate
         );
         }
+
+    /**
+     * Fail a payment with a specific error code and optional technical reason.
+     * 
+     * @param paymentId The ID of the payment to fail
+     * @param errorCodeString The error code as a string (e.g., "INSUFFICIENT_FUNDS")
+     * @param technicalReason Optional technical reason for the failure
+     * @return The failed payment
+     * @throws PaymentNotFoundException if payment doesn't exist
+     * @throws InvalidStatusTransitionException if payment cannot transition to FAILED
+     */
+    @Override
+    public Payment failPayment(Long paymentId, String errorCodeString, String technicalReason) {
+        // 1. Load payment — throw 404 if not found
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+
+        // 2. Validate the state machine transition
+        PaymentStatus currentStatus = PaymentStatus.valueOf(payment.getStatus());
+        if (!currentStatus.canTransitionTo(PaymentStatus.FAILED)) {
+            throw new InvalidStatusTransitionException(currentStatus, PaymentStatus.FAILED);
+        }
+
+        // 3. Generate user-friendly message from error code
+        String userFriendlyMessage = ErrorMessageMapping.getUserFriendlyMessageByString(errorCodeString);
+        
+        // 4. Update payment with error details
+        paymentRepository.updatePaymentWithError(paymentId, errorCodeString, userFriendlyMessage);
+
+        // 5. Record audit trail
+        String historyNotes = technicalReason != null && !technicalReason.isBlank()
+                ? technicalReason + " | User message: " + userFriendlyMessage
+                : userFriendlyMessage;
+        
+        historyRepository.save(new PaymentHistory(
+                paymentId,
+                currentStatus.name(),
+                PaymentStatus.FAILED.name(),
+                LocalDateTime.now(),
+                historyNotes
+        ));
+
+        // 6. Return the updated payment
+        payment.setStatus(PaymentStatus.FAILED.name());
+        payment.setErrorCode(errorCodeString);
+        payment.setDescription(userFriendlyMessage);
+        payment.setUpdatedAt(LocalDateTime.now());
+        
+        return payment;
+    }
 }
