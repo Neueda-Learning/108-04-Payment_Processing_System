@@ -99,6 +99,11 @@ class AccountServiceImplementationTest {
         public List<Account> findAll() {
             return allAccounts;
         }
+
+        @Override
+        public void updateBalance(String accountNumber, java.math.BigDecimal newBalance) {
+            // no-op for tests
+        }
     }
 }
 

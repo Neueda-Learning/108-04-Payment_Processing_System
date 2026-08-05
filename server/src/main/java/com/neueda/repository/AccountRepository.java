@@ -12,5 +12,7 @@ public interface AccountRepository {
     Optional<Account> findByAccountNumber(String accountNumber);
 
     List<Account> findAll();
+
+    void updateBalance(String accountNumber, java.math.BigDecimal newBalance);
     
 }

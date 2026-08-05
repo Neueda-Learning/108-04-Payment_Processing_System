@@ -122,7 +122,7 @@ public class PaymentServiceImplemenation implements PaymentService {
                 LocalDateTime.now(), "Payment passed all validation checks"));
         notifyPaymentUpdate(saved, h2);
 
-        // --- STEP 3: SENT — check balance ---
+        // --- STEP 3: SENT — deduct from source, credit to destination ---
         sleep(2000);
         if (accountRepository != null) {
             Optional<Account> srcOpt = accountRepository.findByAccountNumber(saved.getSourceAccount());
@@ -139,6 +139,50 @@ public class PaymentServiceImplemenation implements PaymentService {
                         LocalDateTime.now(), reason));
                 notifyPaymentUpdate(saved, fh);
                 return saved;
+            }
+
+            // Deduct from source
+
+            if (srcOpt.isPresent()) {
+                
+                java.math.BigDecimal newSrcBalance = srcOpt.get().getBalance().subtract(saved.getAmount());
+                accountRepository.updateBalance(saved.getSourceAccount(), newSrcBalance);
+            }
+
+            // Credit to destination with currency conversion
+            Optional<Account> destOpt = accountRepository.findByAccountNumber(saved.getDestinationAccount());
+            if (destOpt.isPresent()) {
+                String srcCurrency = srcOpt.isPresent() ? srcOpt.get().getAccountCurrencyType() : saved.getCurrency();
+                String destCurrency = destOpt.get().getAccountCurrencyType();
+                java.math.BigDecimal amount = saved.getAmount();
+                java.math.BigDecimal convertedAmount = amount;
+
+                if (srcCurrency != null && destCurrency != null && !srcCurrency.equalsIgnoreCase(destCurrency)) {
+                    try {
+                        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                        String url = "https://api.frankfurter.dev/v1/latest?from=" + srcCurrency + "&to=" + destCurrency;
+                        System.out.println("[FX] Fetching rate: " + url);
+                        @SuppressWarnings("unchecked")
+                        java.util.Map<String, Object> response = restTemplate.getForObject(url, java.util.Map.class);
+                        if (response != null && response.containsKey("rates")) {
+                            @SuppressWarnings("unchecked")
+                            java.util.Map<String, Number> rates = (java.util.Map<String, Number>) response.get("rates");
+                            Number rate = rates.get(destCurrency.toUpperCase());
+                            if (rate != null) {
+                                convertedAmount = amount.multiply(new java.math.BigDecimal(rate.toString()))
+                                        .setScale(2, java.math.RoundingMode.HALF_UP);
+                                System.out.println("[FX] Rate " + srcCurrency + "->" + destCurrency + " = " + rate + " | " + amount + " -> " + convertedAmount);
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.out.println("[FX] Exchange rate fetch failed, using 1:1: " + e.getMessage());
+                    }
+                } else {
+                    System.out.println("[FX] Same currency (" + srcCurrency + "), no conversion needed.");
+                }
+
+                java.math.BigDecimal newDestBalance = destOpt.get().getBalance().add(convertedAmount);
+                accountRepository.updateBalance(saved.getDestinationAccount(), newDestBalance);
             }
         }
         paymentRepository.updateStatus(saved.getId(), PaymentStatus.SENT.name());

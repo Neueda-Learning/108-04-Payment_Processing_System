@@ -84,4 +84,9 @@ public class AccountRepositoryImplementation implements AccountRepository {
         return jdbc.query(sql, getRowMapper());
     }
 
+    public void updateBalance(String accountNumber, java.math.BigDecimal newBalance) {
+        String sql = "UPDATE accounts SET balance = ? WHERE account_number = ?";
+        jdbc.update(sql, newBalance, accountNumber);
+    }
+
 }
