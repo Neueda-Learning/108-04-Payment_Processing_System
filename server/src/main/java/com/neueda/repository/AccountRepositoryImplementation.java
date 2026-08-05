@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.*;
 import org.springframework.jdbc.support.*;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.*;
 
@@ -82,6 +83,26 @@ public class AccountRepositoryImplementation implements AccountRepository {
     public List<Account> findAll() {
         String sql = "SELECT * FROM accounts";
         return jdbc.query(sql, getRowMapper());
+    }
+
+    @Override
+    public int debitBalance(String accountNumber, BigDecimal amount) {
+        String sql = """
+            UPDATE accounts
+            SET balance = balance - ?
+            WHERE account_number = ? AND balance >= ?
+        """;
+        return jdbc.update(sql, amount, accountNumber, amount);
+    }
+
+    @Override
+    public int creditBalance(String accountNumber, BigDecimal amount) {
+        String sql = """
+            UPDATE accounts
+            SET balance = balance + ?
+            WHERE account_number = ?
+        """;
+        return jdbc.update(sql, amount, accountNumber);
     }
 
 }

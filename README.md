@@ -28,6 +28,7 @@ Install/update dependencies inside each module folder rather than from repositor
 
 ## Current State
 
+- Backend status: basic backend complete and working.
 - Backend: full payment lifecycle API (create, list/filter, status transitions, failure handling, history, idempotency lookup, stats)
 - Frontend: complete page flow and navigation, currently mock-data driven
 - Chatbot: working FAQ retrieval + LLM answer generation with fallback
