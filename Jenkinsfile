@@ -24,7 +24,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker-compose build --no-cache'
+                sh 'docker-compose build'
             }
         }
 
@@ -38,6 +38,16 @@ pipeline {
             steps {
                 sh 'docker ps'
             }
+        }
+    }
+
+    post {
+        failure {
+            sh 'docker-compose logs --tail=100 || true'
+        }
+
+        always {
+            echo 'Pipeline completed'
         }
     }
 }
