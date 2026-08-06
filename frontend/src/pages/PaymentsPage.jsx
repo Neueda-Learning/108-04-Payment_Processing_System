@@ -20,7 +20,9 @@ function PaymentsPage() {
   const debounceRef = useRef(null);
 
   // NEW: generate once when payment page opens
-  const [idempotencyKey] = useState(() => `idem-${crypto.randomUUID()}`);
+ const [idempotencyKey] = useState(
+  () => `idem-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
 
@@ -249,7 +251,7 @@ function PaymentsPage() {
            {/* Pay button */}
            <button
              onClick={handleSubmit}
-             disabled={!payment.amount || !payment.destinationAccount}
+              disabled={isSubmitting || !payment.amount || !payment.destinationAccount}
              className="w-full mt-2 bg-red-600 text-white py-3.5 rounded-xl font-semibold text-sm tracking-wide hover:bg-red-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-red-200"
            >
              {payment.amount && receiverInfo
