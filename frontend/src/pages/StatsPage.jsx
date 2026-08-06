@@ -55,8 +55,8 @@ function StatsPage() {
     setLoading(true);
     setError(null);
     Promise.all([
-      axios.get("http://localhost:8080/stats/payments"),
-      axios.get("http://localhost:8080/stats/dashboard", { params: { from: range.from, to: range.to } }),
+      axios.get(`${import.meta.env.VITE_API_URL}/stats/payments`),
+      axios.get(`${import.meta.env.VITE_API_URL}/stats/dashboard`, { params: { from: range.from, to: range.to } }),
     ])
       .then(([summaryRes, dashboardRes]) => {
         setSummary(summaryRes.data);
