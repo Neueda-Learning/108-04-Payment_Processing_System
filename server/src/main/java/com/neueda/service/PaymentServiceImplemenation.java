@@ -32,7 +32,7 @@ public class PaymentServiceImplemenation implements PaymentService {
     private final PaymentHistoryRepository historyRepository;
     private final AccountRepository accountRepository;
     private final PaymentNotificationService notificationService;
-    private final AccountRepository accountRepository;
+   // private final AccountRepository accountRepository;
 
     public PaymentServiceImplemenation(PaymentRepository paymentRepository,
                                        PaymentHistoryRepository historyRepository) {
@@ -48,7 +48,7 @@ public class PaymentServiceImplemenation implements PaymentService {
         this.historyRepository = historyRepository;
         this.accountRepository = accountRepository;
         this.notificationService = notificationService;
-        this.accountRepository = accountRepository;
+       // this.accountRepository = accountRepository;
     }
 
     /**
@@ -282,17 +282,17 @@ public class PaymentServiceImplemenation implements PaymentService {
                     "Payment currency must match source and destination account currencies");
         }
 
-        int debitedRows = accountRepository.debitBalance(sourceAccount.getAccountNumber(), payment.getAmount());
-        if (debitedRows == 0) {
-            throw new ValidationException(ErrorCode.INSUFFICIENT_FUNDS,
-                    "Insufficient funds in source account: " + sourceAccount.getAccountNumber());
-        }
+        // int debitedRows = accountRepository.debitBalance(sourceAccount.getAccountNumber(), payment.getAmount());
+        // if (debitedRows == 0) {
+        //     throw new ValidationException(ErrorCode.INSUFFICIENT_FUNDS,
+        //             "Insufficient funds in source account: " + sourceAccount.getAccountNumber());
+        // }
 
-        int creditedRows = accountRepository.creditBalance(destinationAccount.getAccountNumber(), payment.getAmount());
-        if (creditedRows == 0) {
-            throw new ValidationException(ErrorCode.INVALID_ACCOUNT,
-                    "Destination account not found for credit: " + destinationAccount.getAccountNumber());
-        }
+        // int creditedRows = accountRepository.creditBalance(destinationAccount.getAccountNumber(), payment.getAmount());
+        // if (creditedRows == 0) {
+        //     throw new ValidationException(ErrorCode.INVALID_ACCOUNT,
+        //             "Destination account not found for credit: " + destinationAccount.getAccountNumber());
+        // }
     }
 
     @Override

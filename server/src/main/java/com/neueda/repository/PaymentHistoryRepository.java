@@ -8,6 +8,5 @@ public interface PaymentHistoryRepository {
     PaymentHistory save(PaymentHistory history);
     
     List<PaymentHistory> findByPaymentId(Long paymentId);
-    
 }
 
