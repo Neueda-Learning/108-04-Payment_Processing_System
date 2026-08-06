@@ -20,7 +20,7 @@ function PaymentsPage() {
   useEffect(() => {
     const sourceAccount = localStorage.getItem("account");
     if (sourceAccount) {
-      axios.get(`http://localhost:8080/accounts/${sourceAccount}`)
+      axios.get(`${import.meta.env.VITE_API_URL}/accounts/${sourceAccount}`)
         .then(res => {
           setSenderCurrency(res.data.accountCurrencyType || "USD");
         })
