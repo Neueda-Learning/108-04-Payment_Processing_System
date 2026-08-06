@@ -1,7 +1,5 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-
-
 from fastapi.middleware.cors import CORSMiddleware
 from retrieval import retrieve
 from prompt import build_prompt
