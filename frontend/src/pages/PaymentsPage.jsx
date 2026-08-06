@@ -75,13 +75,13 @@ function PaymentsPage() {
     }
   };
 
-  const sourceAccount = localStorage.getItem("account") || "â€”";
+  const sourceAccount = localStorage.getItem("account") || "—";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center px-4 py-10">
 
       {/* Card */}
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden">
+      <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-xl overflow-hidden">
 
         {/* Red header stripe */}
         <div className="bg-red-600 px-6 pt-7 pb-10">
@@ -91,11 +91,11 @@ function PaymentsPage() {
         </div>
 
         {/* Pull-up white section */}
-        <div className="-mt-5 bg-white rounded-t-3xl px-6 pt-6 pb-8 space-y-5">
+        <div className="-mt-5 bg-white dark:bg-gray-900 rounded-t-3xl px-6 pt-6 pb-8 space-y-5">
 
           {/* Destination account + receiver name */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">To Account</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">To Account</label>
             <div className="relative mt-2">
               <input
                 type="text"
@@ -103,7 +103,7 @@ function PaymentsPage() {
                 placeholder="Enter account number"
                 value={payment.destinationAccount}
                 onChange={handleChange}
-                className="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+                className="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white dark:focus:bg-gray-800 transition"
               />
               {/* Status indicator */}
               <div className="absolute right-3 top-3.5">
@@ -123,15 +123,15 @@ function PaymentsPage() {
               </div>
             </div>
 
-            {/* Receiver card â€” shown when found */}
+            {/* Receiver card — shown when found */}
             {receiverStatus === "found" && receiverInfo && (
-              <div className="mt-2 flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 px-4 py-3">
+              <div className="mt-2 flex items-center gap-3 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 px-4 py-3">
                 <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-green-600 text-white text-sm font-bold">
                   {receiverInfo.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{receiverInfo.name}</p>
-                  <p className="text-xs text-gray-500">Account verified Â· {receiverInfo.currency}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{receiverInfo.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Account verified · {receiverInfo.currency}</p>
                 </div>
                 <svg className="ml-auto h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -140,16 +140,16 @@ function PaymentsPage() {
             )}
 
             {receiverStatus === "not_found" && payment.destinationAccount && (
-              <p className="mt-1.5 text-xs text-red-500">Account not found</p>
+              <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">Account not found</p>
             )}
           </div>
 
           {/* Amount */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Amount</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Amount</label>
             <div className="relative mt-2">
-              <span className="absolute left-4 top-3 text-gray-400 text-sm font-semibold">
-                {receiverInfo?.currency || "â‚¹"}
+              <span className="absolute left-4 top-3 text-gray-400 dark:text-gray-500 text-sm font-semibold">
+                {receiverInfo?.currency || "₹"}
               </span>
               <input
                 type="number"
@@ -157,21 +157,21 @@ function PaymentsPage() {
                 placeholder="0.00"
                 value={payment.amount}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white dark:focus:bg-gray-800 transition"
               />
             </div>
           </div>
 
           {/* Summary / Note */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Add a note</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Add a note</label>
             <input
               type="text"
               name="summary"
               placeholder="e.g. Rent, Groceries..."
               value={payment.summary}
               onChange={handleChange}
-              className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+              className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white dark:focus:bg-gray-800 transition"
             />
           </div>
 

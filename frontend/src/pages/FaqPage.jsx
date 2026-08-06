@@ -33,7 +33,7 @@ function FAQPage() {
 
   return (
 
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden bg-gray-50 dark:bg-gray-950">
 
 
       {/* Navbar */}
@@ -63,7 +63,7 @@ function FAQPage() {
 
 
       {/* Overlay */}
-      <div className="absolute inset-0 -z-10 bg-white/85"></div>
+      <div className="absolute inset-0 -z-10 bg-white/85 dark:bg-gray-950/90"></div>
 
 
 
@@ -76,12 +76,12 @@ function FAQPage() {
         {/* Header */}
         <div className="max-w-4xl mx-auto mb-8">
 
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Frequently Asked Questions
           </h2>
 
 
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
             Find quick answers about payments, transactions,
             security, and FlashPay services.
           </p>
@@ -104,8 +104,9 @@ function FAQPage() {
               key={index}
               className="
                 bg-white/95
+                dark:bg-gray-900/95
                 backdrop-blur-sm
-                border border-gray-200
+                border border-gray-200 dark:border-gray-800
                 rounded-xl
                 shadow-lg
                 overflow-hidden
@@ -125,12 +126,12 @@ function FAQPage() {
                   items-center
                   text-left
                   p-6
-                  hover:bg-gray-50
+                  hover:bg-gray-50 dark:hover:bg-gray-800/60
                   transition
                 "
               >
 
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   {faq.question}
                 </h3>
 
@@ -170,7 +171,7 @@ function FAQPage() {
                   className="
                     px-6
                     pb-6
-                    text-gray-600
+                    text-gray-600 dark:text-gray-400
                     leading-relaxed
                   "
                 >

@@ -4,6 +4,7 @@ import com.neueda.model.PaymentHistory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jdbc.test.autoconfigure.JdbcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,6 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @JdbcTest
+// schema.sql uses MySQL-flavored DDL (inline INDEX(...) in CREATE TABLE) that relies on
+// the app's configured H2 URL running in MODE=MySQL (see application.properties). Spring's
+// default @JdbcTest datasource replacement drops that URL, so keep the real one instead.
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(PaymentHistoryRepositoryImplementation.class)
 class PaymentHistoryRepositoryImplementationTest {
 

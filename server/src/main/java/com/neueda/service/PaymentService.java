@@ -3,6 +3,8 @@ import com.neueda.model.Payment;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
 import com.neueda.dto.PaymentStatsResponse;
+import com.neueda.dto.DashboardStatsResponse;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,6 +33,12 @@ public interface PaymentService {
     Optional<Payment> getPaymentByIdempotencyKey(String key);
 
     PaymentStatsResponse getPaymentStats();
+
+    /**
+     * Aggregated analytics for the dashboard charts, optionally bounded by a date range.
+     * When either bound is omitted, defaults to the last 30 days (inclusive).
+     */
+    DashboardStatsResponse getDashboardStats(LocalDate from, LocalDate to);
 
     /**
      * Fail a payment with a specific error code and optional technical reason.

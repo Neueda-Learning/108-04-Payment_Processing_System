@@ -103,19 +103,19 @@ function PaymentProgressPage() {
   const isCompleted = paymentStatus === "COMPLETED";
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
 
       {/* Success / Failure overlay */}
       {done && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className={`mx-4 w-full max-w-sm rounded-2xl p-8 text-center shadow-2xl bg-white ${success ? "border-t-4 border-green-500" : "border-t-4 border-red-600"}`}>
-            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl font-bold ${success ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+          <div className={`mx-4 w-full max-w-sm rounded-2xl p-8 text-center shadow-2xl bg-white dark:bg-gray-900 ${success ? "border-t-4 border-green-500" : "border-t-4 border-red-600"}`}>
+            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl font-bold ${success ? "bg-green-100 text-green-600 dark:bg-green-500/10 dark:text-green-400" : "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400"}`}>
               {success ? "✓" : "✗"}
             </div>
-            <h2 className={`mt-5 text-xl font-bold ${success ? "text-green-700" : "text-red-700"}`}>
+            <h2 className={`mt-5 text-xl font-bold ${success ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
               {success ? "Payment Successful!" : "Payment Failed"}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">Returning to payments in 3 seconds...</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Returning to payments in 3 seconds...</p>
             <button
               onClick={() => navigate("/payments", { replace: true })}
               className={`mt-5 w-full rounded-xl py-3 font-semibold text-white transition ${success ? "bg-green-500 hover:bg-green-600" : "bg-red-600 hover:bg-red-700"}`}
@@ -127,16 +127,16 @@ function PaymentProgressPage() {
       )}
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-5 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-5 shadow-sm">
         <div className="mx-auto max-w-4xl flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-red-600">FlashPay</p>
-            <h1 className="text-xl font-bold text-gray-900 mt-0.5">Payment in Progress</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-red-600 dark:text-red-400">FlashPay</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-0.5">Payment in Progress</h1>
           </div>
           <span className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide ${
-            isFailed ? "bg-red-100 text-red-700"
-            : isCompleted ? "bg-green-100 text-green-700"
-            : "bg-amber-100 text-amber-700"
+            isFailed ? "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+            : isCompleted ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400"
+            : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
           }`}>
             {paymentStatus}
           </span>
@@ -146,12 +146,12 @@ function PaymentProgressPage() {
       <div className="mx-auto max-w-4xl px-6 py-8 space-y-6">
 
         {/* Wide Razorpay-style stepper */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-8">
 
           {/* Steps row */}
           <div className="relative flex items-start justify-between">
             {/* Background track */}
-            <div className="absolute top-5 left-[2.5rem] right-[2.5rem] h-1 bg-gray-200" />
+            <div className="absolute top-5 left-[2.5rem] right-[2.5rem] h-1 bg-gray-200 dark:bg-gray-700" />
             {/* Animated fill */}
             <div
               className={`absolute top-5 left-[2.5rem] h-1 transition-all duration-700 ${isFailed ? "bg-red-500" : "bg-red-600"}`}
@@ -169,8 +169,8 @@ function PaymentProgressPage() {
                       : isComplete
                       ? "border-red-600 bg-red-600 text-white"
                       : isActive
-                      ? "border-red-600 bg-white text-red-600 scale-110 shadow-md ring-4 ring-red-100"
-                      : "border-gray-300 bg-white text-gray-400"
+                      ? "border-red-600 bg-white dark:bg-gray-900 text-red-600 scale-110 shadow-md ring-4 ring-red-100 dark:ring-red-500/20"
+                      : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-400 dark:text-gray-500"
                   }`}>
                     {isComplete ? (
                       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -179,11 +179,11 @@ function PaymentProgressPage() {
                     ) : index + 1}
                   </div>
                   <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${
-                    isFailed && isActive ? "text-red-600"
-                    : isComplete || isActive ? "text-gray-900"
-                    : "text-gray-400"
+                    isFailed && isActive ? "text-red-600 dark:text-red-400"
+                    : isComplete || isActive ? "text-gray-900 dark:text-gray-100"
+                    : "text-gray-400 dark:text-gray-500"
                   }`}>{stage}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                     {["Submitted","Verified","Transferred","Confirmed"][index]}
                   </p>
                 </div>
@@ -193,9 +193,9 @@ function PaymentProgressPage() {
 
           {/* Status bar */}
           <div className={`mt-8 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${
-            isFailed ? "bg-red-50 text-red-700 border border-red-200"
-            : isCompleted ? "bg-green-50 text-green-700 border border-green-200"
-            : "bg-red-50 text-red-600 border border-red-100"
+            isFailed ? "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30"
+            : isCompleted ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30"
+            : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-500/20"
           }`}>
             <span className={`inline-block h-2 w-2 rounded-full flex-shrink-0 ${isFailed ? "bg-red-500" : isCompleted ? "bg-green-500" : "bg-red-500 animate-pulse"}`} />
             {socketMessage}
@@ -203,28 +203,28 @@ function PaymentProgressPage() {
         </div>
 
         {/* Payment details */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-red-600 mb-5">Payment Details</h2>
-          <div className="grid grid-cols-3 gap-6 pb-6 border-b border-gray-100">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-red-600 dark:text-red-400 mb-5">Payment Details</h2>
+          <div className="grid grid-cols-3 gap-6 pb-6 border-b border-gray-100 dark:border-gray-800">
             <div>
-              <p className="text-xs text-gray-500">Amount</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {paymentRequest?.currency || ""} {paymentRequest?.amount || "0"}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Destination</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 break-all">{paymentRequest?.destinationAccount || "N/A"}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Destination</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100 break-all">{paymentRequest?.destinationAccount || "N/A"}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Summary</p>
-              <p className="mt-1 text-sm text-gray-700">{paymentRequest?.description || "No summary"}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Summary</p>
+              <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{paymentRequest?.description || "No summary"}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => navigate("/payments")}
-            className="mt-5 w-full rounded-xl border border-red-600 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-600 hover:text-white"
+            className="mt-5 w-full rounded-xl border border-red-600 py-3 text-sm font-semibold text-red-600 dark:text-red-400 transition hover:bg-red-600 hover:text-white"
           >
             ← Back to Payments
           </button>

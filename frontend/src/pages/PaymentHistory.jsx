@@ -1,53 +1,58 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
 import Navbar from "../components/Navbar";
+import { getStatusBadgeClasses } from "../utils/status";
 
 function PaymentHistory() {
 
-  const payments = [
-    {
-      id: "PAY001",
-      amount: "€250.00",
-      receiver: "Account ****4521",
-      status: "COMPLETED",
-      date: "01 Aug 2026",
-      description: "Monthly rent payment"
-    },
-    {
-      id: "PAY002",
-      amount: "€120.00",
-      receiver: "Account ****7823",
-      status: "PENDING",
-      date: "30 Jul 2026",
-      description: "Online shopping payment"
-    },
-    {
-      id: "PAY003",
-      amount: "€75.00",
-      receiver: "Account ****9912",
-      status: "FAILED",
-      date: "28 Jul 2026",
-      description: "Utility bill payment"
-    }
-  ];
+  const accountNumber = localStorage.getItem("account");
 
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const statusStyle = (status) => {
+  useEffect(() => {
+    let cancelled = false;
 
-    if (status === "COMPLETED") {
-      return "bg-green-50 text-green-700 border-green-200";
-    }
+    axios.get("http://localhost:8080/payments")
+      .then((res) => {
+        if (cancelled) return;
+        const mine = res.data
+          .filter((p) => p.sourceAccount === accountNumber || p.destinationAccount === accountNumber)
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setPayments(mine);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load payment history. Is the backend running?");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    if (status === "FAILED") {
-      return "bg-red-50 text-red-700 border-red-200";
-    }
+    return () => { cancelled = true; };
+  }, [accountNumber]);
 
-    return "bg-yellow-50 text-yellow-700 border-yellow-200";
+  const formatDate = (value) => {
+    if (!value) return "—";
+    return new Date(value).toLocaleString(undefined, {
+      day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+  };
 
+  const direction = (payment) => {
+    const outgoing = payment.sourceAccount === accountNumber;
+    return {
+      label: outgoing ? "Sent to" : "Received from",
+      counterparty: outgoing ? payment.destinationAccount : payment.sourceAccount,
+      sign: outgoing ? "−" : "+",
+      colorClass: outgoing ? "text-gray-900 dark:text-gray-100" : "text-green-600 dark:text-green-400",
+    };
   };
 
 
   return (
 
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden bg-gray-50 dark:bg-gray-950">
 
 
       {/* Navbar */}
@@ -64,7 +69,7 @@ function PaymentHistory() {
           inset-0
           bg-cover
           bg-center
-          animate-pulse
+          dark:opacity-20
         "
         style={{
           backgroundImage:
@@ -75,7 +80,7 @@ function PaymentHistory() {
 
 
       {/* Overlay */}
-      <div className="absolute inset-0 bg-white/85"></div>
+      <div className="absolute inset-0 bg-white/85 dark:bg-gray-950/90"></div>
 
 
 
@@ -87,11 +92,11 @@ function PaymentHistory() {
         {/* Header */}
         <div className="max-w-6xl mx-auto mb-8">
 
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Payment History
           </h2>
 
-          <p className="text-gray-600 mt-2 max-w-xl text-sm sm:text-base">
+          <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-xl text-sm sm:text-base">
             View all your previous transactions, payment status,
             receiver details, and descriptions in one secure place.
           </p>
@@ -109,42 +114,57 @@ function PaymentHistory() {
             max-w-6xl
             mx-auto
             bg-white/95
+            dark:bg-gray-900/95
             backdrop-blur-sm
             rounded-2xl
-            border border-gray-200
+            border border-gray-200 dark:border-gray-800
             shadow-lg
             overflow-x-auto
           "
         >
 
+          {loading ? (
+            <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">
+              Loading your payment history…
+            </div>
+          ) : error ? (
+            <div className="py-16 text-center text-red-500 dark:text-red-400 text-sm">
+              {error}
+            </div>
+          ) : payments.length === 0 ? (
+            <div className="py-16 text-center text-gray-400 dark:text-gray-500 text-sm">
+              No payments yet. Once you send or receive money, it'll show up here.
+            </div>
+          ) : (
+
           <table className="w-full min-w-[700px] text-left">
 
 
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
 
               <tr>
 
-                <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                   Payment ID
                 </th>
 
-                <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                   Amount
                 </th>
 
-                <th className="px-6 py-4 text-sm font-semibold text-gray-600">
-                  Receiver
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                  Counterparty
                 </th>
 
-                <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                   Description
                 </th>
 
-                <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                   Status
                 </th>
 
-                <th className="px-6 py-4 text-sm font-semibold text-gray-600">
+                <th className="px-6 py-4 text-sm font-semibold text-gray-600 dark:text-gray-300">
                   Date
                 </th>
 
@@ -157,34 +177,38 @@ function PaymentHistory() {
 
             <tbody>
 
-              {payments.map((payment) => (
+              {payments.map((payment) => {
+                const dir = direction(payment);
+                return (
 
                 <tr
                   key={payment.id}
                   className="
-                    border-b
-                    hover:bg-gray-50
+                    border-b border-gray-100 dark:border-gray-800
+                    hover:bg-gray-50 dark:hover:bg-gray-800/50
                     transition
                   "
                 >
 
-                  <td className="px-6 py-4 font-medium text-gray-900">
-                    {payment.id}
+                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
+                    #{payment.id}
                   </td>
 
 
-                  <td className="px-6 py-4 text-gray-700">
-                    {payment.amount}
+                  <td className={`px-6 py-4 font-semibold ${dir.colorClass}`}>
+                    {dir.sign}{payment.currency} {Number(payment.amount).toFixed(2)}
                   </td>
 
 
-                  <td className="px-6 py-4 text-gray-600">
-                    {payment.receiver}
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{dir.label}</span>
+                    <br />
+                    {dir.counterparty}
                   </td>
 
 
-                  <td className="px-6 py-4 text-gray-600">
-                    {payment.description}
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
+                    {payment.description || "—"}
                   </td>
 
 
@@ -197,7 +221,7 @@ function PaymentHistory() {
                         text-xs
                         font-medium
                         border
-                        ${statusStyle(payment.status)}
+                        ${getStatusBadgeClasses(payment.status)}
                       `}
                     >
                       {payment.status}
@@ -206,19 +230,22 @@ function PaymentHistory() {
                   </td>
 
 
-                  <td className="px-6 py-4 text-gray-500">
-                    {payment.date}
+                  <td className="px-6 py-4 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {formatDate(payment.createdAt)}
                   </td>
 
 
                 </tr>
 
-              ))}
+                );
+              })}
 
             </tbody>
 
 
           </table>
+
+          )}
 
 
         </div>
