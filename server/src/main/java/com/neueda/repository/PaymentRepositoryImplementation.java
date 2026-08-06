@@ -135,6 +135,17 @@ System.out.println("Executing SQL: " + sql);
         return jdbc.query(sql, getRowMapper(), status);
     }
 
+    public List<Payment> findRecentByAccountAndWindow(String accountNumber, LocalDateTime windowStart) {
+        String sql = """
+            SELECT *
+            FROM payments
+            WHERE (source_account = ? OR destination_account = ?)
+              AND created_at >= ?
+              AND status <> 'FAILED'
+        """;
+        return jdbc.query(sql, getRowMapper(), accountNumber, accountNumber, Timestamp.valueOf(windowStart));
+    }
+
     public void updateStatus(Long id, String status) {
         String sql = "UPDATE payments SET status = ?, updated_at = ? WHERE id = ?";
         jdbc.update(sql, status, java.sql.Timestamp.valueOf(LocalDateTime.now()), id);

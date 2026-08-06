@@ -10,7 +10,8 @@ function PaymentsPage() {
   const [payment, setPayment] = useState({
     amount: "",
     destinationAccount: "",
-    summary: ""
+    summary: "",
+    paymentType: "IMMEDIATE"
   });
 
   const [senderCurrency, setSenderCurrency] = useState("USD"); // Sender's account currency
@@ -76,6 +77,8 @@ function PaymentsPage() {
             idempotencyKey: `idem-${Date.now()}`,
             description: payment.summary,
             currency: senderCurrency,
+            paymentType: payment.paymentType,
+            scheduledDelaySeconds: payment.paymentType === "SCHEDULED" ? 60 : 0,
           },
         },
       });
@@ -190,6 +193,25 @@ function PaymentsPage() {
             />
           </div>
 
+          {/* Payment type */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Payment Type</label>
+            <select
+              name="paymentType"
+              value={payment.paymentType}
+              onChange={handleChange}
+              className="w-full mt-2 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              <option value="IMMEDIATE">Immediate</option>
+              <option value="SCHEDULED">Scheduled (after 1 minute)</option>
+            </select>
+            {payment.paymentType === "SCHEDULED" && (
+              <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                This payment will start processing after 60 seconds.
+              </p>
+            )}
+          </div>
+
            {/* Pay button */}
            <button
              onClick={handleSubmit}
@@ -197,8 +219,10 @@ function PaymentsPage() {
              className="w-full mt-2 bg-red-600 text-white py-3.5 rounded-xl font-semibold text-sm tracking-wide hover:bg-red-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-red-200"
            >
              {payment.amount && receiverInfo
-               ? `Pay ${senderCurrency} ${payment.amount} to ${receiverInfo.name.split(" ")[0]}`
-               : "Send Payment"}
+               ? (payment.paymentType === "SCHEDULED"
+                 ? `Schedule ${senderCurrency} ${payment.amount} to ${receiverInfo.name.split(" ")[0]}`
+                 : `Pay ${senderCurrency} ${payment.amount} to ${receiverInfo.name.split(" ")[0]}`)
+               : payment.paymentType === "SCHEDULED" ? "Schedule Payment" : "Send Payment"}
            </button>
 
         </div>
