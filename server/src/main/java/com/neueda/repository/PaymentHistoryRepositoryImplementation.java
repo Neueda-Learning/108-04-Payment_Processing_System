@@ -90,5 +90,11 @@ public class PaymentHistoryRepositoryImplementation implements PaymentHistoryRep
         return jdbc.query(sql, getRowMapper(), paymentId);
     }
 
+    @Override
+    public List<PaymentHistory> findAll() {
+        String sql = "SELECT * FROM payment_history ORDER BY payment_id, timestamp ASC";
+        return jdbc.query(sql, getRowMapper());
+    }
+
 }
 

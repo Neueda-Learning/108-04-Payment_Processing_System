@@ -91,7 +91,7 @@ function HomePage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col relative">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col relative">
 
 
       {/* Navbar */}
@@ -106,7 +106,7 @@ function HomePage() {
       {/* Background Image */}
 
       <div
-        className="absolute inset-0 bg-cover bg-center"
+        className="absolute inset-0 bg-cover bg-center dark:opacity-20"
         style={{
           backgroundImage:
             "url('https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80')",
@@ -117,7 +117,7 @@ function HomePage() {
 
       {/* Overlay */}
 
-      <div className="absolute inset-0 bg-white/80"></div>
+      <div className="absolute inset-0 bg-white/80 dark:bg-gray-950/90"></div>
 
 
 
@@ -136,12 +136,12 @@ function HomePage() {
           <div className="max-w-2xl">
 
 
-            <h1 className="text-4xl font-bold text-gray-900 leading-tight">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
               Fast and Secure Payments
             </h1>
 
 
-            <p className="text-gray-600 mt-4 text-lg">
+            <p className="text-gray-600 dark:text-gray-400 mt-4 text-lg">
               Send money instantly with a simple and reliable payment system.
               Track transactions, view history, and manage everything in one place.
             </p>
@@ -190,13 +190,13 @@ function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
 
-            <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-md transform transition duration-500 hover:-translate-y-2">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-8 shadow-md transform transition duration-500 hover:-translate-y-2">
 
-              <h3 className="font-semibold text-lg text-gray-900">
+              <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
                 Instant Transfers
               </h3>
 
-              <p className="text-gray-600 mt-3">
+              <p className="text-gray-600 dark:text-gray-400 mt-3">
                 Payments are processed in real-time with minimal delay,
                 ensuring fast transactions.
               </p>
@@ -207,13 +207,13 @@ function HomePage() {
 
 
 
-            <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-md transform transition duration-500 hover:-translate-y-2 delay-100">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-8 shadow-md transform transition duration-500 hover:-translate-y-2 delay-100">
 
-              <h3 className="font-semibold text-lg text-gray-900">
+              <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
                 Secure System
               </h3>
 
-              <p className="text-gray-600 mt-3">
+              <p className="text-gray-600 dark:text-gray-400 mt-3">
                 Built with secure backend processing and transaction validation.
               </p>
 
@@ -224,13 +224,13 @@ function HomePage() {
 
 
 
-            <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-md transform transition duration-500 hover:-translate-y-2 delay-200">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-8 shadow-md transform transition duration-500 hover:-translate-y-2 delay-200">
 
-              <h3 className="font-semibold text-lg text-gray-900">
+              <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
                 Full Visibility
               </h3>
 
-              <p className="text-gray-600 mt-3">
+              <p className="text-gray-600 dark:text-gray-400 mt-3">
                 Monitor your transactions with complete history and analytics.
               </p>
 
@@ -303,9 +303,11 @@ function HomePage() {
             z-50
             w-96
             bg-white
+            dark:bg-gray-900
             rounded-xl
             shadow-2xl
             border
+            dark:border-gray-800
             overflow-hidden
           "
 
@@ -390,9 +392,9 @@ function HomePage() {
                     ${
                       msg.role==="user"
                       ?
-                      "bg-red-100"
+                      "bg-red-100 dark:bg-red-500/20 text-gray-900 dark:text-gray-100"
                       :
-                      "bg-gray-100"
+                      "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                     }
                   `}
 
@@ -412,7 +414,7 @@ function HomePage() {
 
             {loading && (
 
-              <p className="text-gray-400">
+              <p className="text-gray-400 dark:text-gray-500">
                 Typing...
               </p>
 
@@ -429,7 +431,7 @@ function HomePage() {
           {/* Input */}
 
 
-          <div className="flex border-t">
+          <div className="flex border-t dark:border-gray-800">
 
 
             <input
@@ -450,6 +452,12 @@ function HomePage() {
                 px-4
                 py-3
                 outline-none
+                bg-white
+                dark:bg-gray-900
+                text-gray-900
+                dark:text-gray-100
+                placeholder:text-gray-400
+                dark:placeholder:text-gray-500
               "
 
             />

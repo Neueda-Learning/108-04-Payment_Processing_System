@@ -10,6 +10,8 @@ public class PaymentStatsResponse {
     private BigDecimal totalAmount;
     private double successRate;
     private double failureRate;
+    private BigDecimal averageAmount;
+    private BigDecimal largestAmount;
 
     public PaymentStatsResponse() {}
 
@@ -18,13 +20,17 @@ public class PaymentStatsResponse {
                                 long failedPayments,
                                 BigDecimal totalAmount,
                                 double successRate,
-                                double failureRate) {
+                                double failureRate,
+                                BigDecimal averageAmount,
+                                BigDecimal largestAmount) {
         this.totalPayments = totalPayments;
         this.successfulPayments = successfulPayments;
         this.failedPayments = failedPayments;
         this.totalAmount = totalAmount;
         this.successRate = successRate;
         this.failureRate = failureRate;
+        this.averageAmount = averageAmount;
+        this.largestAmount = largestAmount;
     }
 
     public long getTotalPayments() {
@@ -73,5 +79,21 @@ public class PaymentStatsResponse {
 
     public void setFailureRate(double failureRate) {
         this.failureRate = failureRate;
+    }
+
+    public BigDecimal getAverageAmount() {
+        return averageAmount;
+    }
+
+    public void setAverageAmount(BigDecimal averageAmount) {
+        this.averageAmount = averageAmount;
+    }
+
+    public BigDecimal getLargestAmount() {
+        return largestAmount;
+    }
+
+    public void setLargestAmount(BigDecimal largestAmount) {
+        this.largestAmount = largestAmount;
     }
 }

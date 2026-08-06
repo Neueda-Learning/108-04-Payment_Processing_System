@@ -8,6 +8,7 @@ import com.neueda.model.Payment;
 import com.neueda.model.PaymentHistory;
 import com.neueda.model.PaymentStatus;
 import com.neueda.dto.PaymentStatsResponse;
+import com.neueda.dto.DashboardStatsResponse;
 import com.neueda.repository.PaymentHistoryRepository;
 import com.neueda.repository.PaymentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,7 +16,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -206,6 +210,115 @@ class PaymentServiceImplemenationTest {
         }
     }
 
+    @Nested
+    class GetDashboardStats {
+
+        @Test
+        void groupsPaymentsByStatusCurrencyAndDay() {
+            LocalDate day = LocalDate.of(2026, 7, 15);
+            seedPayment("idem-d1", "USD", PaymentStatus.COMPLETED.name(), "50.00", day.atTime(9, 0));
+            seedPayment("idem-d2", "USD", PaymentStatus.COMPLETED.name(), "25.00", day.atTime(10, 0));
+            seedPayment("idem-d3", "EUR", PaymentStatus.FAILED.name(), "10.00", day.atTime(11, 0));
+
+            DashboardStatsResponse stats = service.getDashboardStats(day.minusDays(1), day.plusDays(1));
+
+            assertAll(
+                () -> assertEquals(2, stats.getStatusDistribution().size()),
+                () -> assertEquals(1, stats.getVolumeOverTime().size()),
+                () -> assertEquals(3, stats.getVolumeOverTime().getFirst().count()),
+                () -> assertEquals(new BigDecimal("85.00"), stats.getVolumeOverTime().getFirst().totalAmount()),
+                () -> assertEquals(2, stats.getCurrencyBreakdown().size())
+            );
+        }
+
+        @Test
+        void groupsFailedPaymentsByErrorCode() {
+            LocalDate day = LocalDate.of(2026, 7, 15);
+            Payment failed = seedPayment("idem-f1", "USD", PaymentStatus.FAILED.name(), "10.00", day.atTime(9, 0));
+            failed.setErrorCode("INSUFFICIENT_FUNDS");
+            paymentRepository.updatePayment(failed);
+
+            DashboardStatsResponse stats = service.getDashboardStats(day, day);
+
+            assertAll(
+                () -> assertEquals(1, stats.getFailureReasons().size()),
+                () -> assertEquals("INSUFFICIENT_FUNDS", stats.getFailureReasons().getFirst().errorCode()),
+                () -> assertEquals(1, stats.getFailureReasons().getFirst().count())
+            );
+        }
+
+        @Test
+        void computesSuccessRatePerDay() {
+            LocalDate day = LocalDate.of(2026, 7, 15);
+            seedPayment("idem-s1", "USD", PaymentStatus.COMPLETED.name(), "10.00", day.atTime(9, 0));
+            seedPayment("idem-s2", "USD", PaymentStatus.FAILED.name(), "10.00", day.atTime(10, 0));
+
+            DashboardStatsResponse stats = service.getDashboardStats(day, day);
+
+            assertAll(
+                () -> assertEquals(1, stats.getSuccessRateOverTime().size()),
+                () -> assertEquals(50.0, stats.getSuccessRateOverTime().getFirst().successRate())
+            );
+        }
+
+        @Test
+        void computesAverageStageDurationFromHistory() {
+            Payment payment = seedPayment("idem-stage-1", "USD", PaymentStatus.COMPLETED.name(), "10.00",
+                    LocalDateTime.of(2026, 7, 15, 9, 0));
+            historyRepository.save(new PaymentHistory(payment.getId(), null, "CREATED",
+                    LocalDateTime.of(2026, 7, 15, 9, 0, 0), "created"));
+            historyRepository.save(new PaymentHistory(payment.getId(), "CREATED", "VALIDATED",
+                    LocalDateTime.of(2026, 7, 15, 9, 0, 5), "validated"));
+
+            DashboardStatsResponse stats = service.getDashboardStats(
+                    LocalDate.of(2026, 7, 15), LocalDate.of(2026, 7, 15));
+
+            assertAll(
+                () -> assertEquals(1, stats.getAvgStageDuration().size()),
+                () -> assertEquals("CREATED_TO_VALIDATED", stats.getAvgStageDuration().getFirst().stage()),
+                () -> assertEquals(5.0, stats.getAvgStageDuration().getFirst().avgSeconds())
+            );
+        }
+
+        @Test
+        void defaultsToLast30DaysWhenNoRangeGiven() {
+            DashboardStatsResponse stats = service.getDashboardStats(null, null);
+
+            assertAll(
+                () -> assertEquals(LocalDate.now(), stats.getTo()),
+                () -> assertEquals(LocalDate.now().minusDays(29), stats.getFrom())
+            );
+        }
+
+        @Test
+        void emptyRangeReturnsEmptySections() {
+            DashboardStatsResponse stats = service.getDashboardStats(
+                    LocalDate.of(2000, 1, 1), LocalDate.of(2000, 1, 2));
+
+            assertAll(
+                () -> assertEquals(0, stats.getStatusDistribution().size()),
+                () -> assertEquals(0, stats.getVolumeOverTime().size()),
+                () -> assertEquals(0, stats.getFailureReasons().size()),
+                () -> assertEquals(0, stats.getAvgStageDuration().size()),
+                () -> assertEquals(0, stats.getSuccessRateOverTime().size()),
+                () -> assertEquals(0, stats.getCurrencyBreakdown().size())
+            );
+        }
+
+        private Payment seedPayment(String idempotencyKey, String currency, String status,
+                                     String amount, LocalDateTime createdAt) {
+            Payment payment = new Payment();
+            payment.setAmount(new BigDecimal(amount));
+            payment.setSourceAccount("SRC12345");
+            payment.setDestinationAccount("DST12345");
+            payment.setIdempotencyKey(idempotencyKey);
+            payment.setCurrency(currency);
+            payment.setStatus(status);
+            payment.setCreatedAt(createdAt);
+            return paymentRepository.save(payment);
+        }
+    }
+
     @Test
     void getPaymentByIdReturnsRepositoryResult() {
         Payment saved = service.createPayment(validPayment("idem-get-1"));
@@ -305,6 +418,7 @@ class PaymentServiceImplemenationTest {
         payment.setDestinationAccount("DST12345");
         payment.setIdempotencyKey(key);
         payment.setCurrency("USD");
+        payment.setStatus(PaymentStatus.CREATED.name());
         return payment;
     }
 
@@ -408,6 +522,14 @@ class PaymentServiceImplemenationTest {
             return saved.stream()
                     .filter(h -> paymentId.equals(h.getPaymentId()))
                     .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()))  // Most recent first
+                    .toList();
+        }
+
+        @Override
+        public List<PaymentHistory> findAll() {
+            return saved.stream()
+                    .sorted(Comparator.comparing(PaymentHistory::getPaymentId)
+                            .thenComparing(PaymentHistory::getTimestamp))
                     .toList();
         }
     }
