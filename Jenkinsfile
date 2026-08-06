@@ -16,11 +16,13 @@ pipeline {
             }
         }
 
+
         stage('Stop Existing Containers') {
             steps {
                 sh 'docker-compose down || true'
             }
         }
+
 
         stage('Build Docker Image') {
             steps {
@@ -28,11 +30,28 @@ pipeline {
             }
         }
 
+
         stage('Deploy') {
             steps {
-                sh 'docker-compose up -d'
+
+                withCredentials([
+                    string(
+                        credentialsId: 'GEMINI_API_KEY',
+                        variable: 'GEMINI_API_KEY'
+                    )
+                ]) {
+
+                    sh '''
+                    export GEMINI_API_KEY=$GEMINI_API_KEY
+
+                    docker-compose up -d
+                    '''
+
+                }
+
             }
         }
+
 
         stage('Verify') {
             steps {
@@ -41,7 +60,9 @@ pipeline {
         }
     }
 
+
     post {
+
         failure {
             sh 'docker-compose logs --tail=100 || true'
         }
