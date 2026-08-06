@@ -48,6 +48,8 @@ services:
     restart: always
     ports:
       - "8083:8000"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
 
   # ── React frontend (nginx) ─────────────────────────────────────────────────
   frontend:
