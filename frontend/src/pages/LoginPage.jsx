@@ -11,7 +11,7 @@ function LoginPage() {
     accountNumber: "",
     accountHolderName: "",
     balance: "",
-    accountCurrencyType: "RUPEES",
+    accountCurrencyType: "INR",
     status: "ACTIVE"
 
     
@@ -222,10 +222,16 @@ function LoginPage() {
               }
             >
 
-              <option>RUPEES</option>
+              <option>INR</option>
               <option>USD</option>
               <option>EUR</option>
               <option>GBP</option>
+              <option>JPY</option>
+              <option>AUD</option>
+              <option>CAD</option>
+              <option>CHF</option>
+              <option>CNY</option>
+              <option>MXN</option>
 
             </select>
 

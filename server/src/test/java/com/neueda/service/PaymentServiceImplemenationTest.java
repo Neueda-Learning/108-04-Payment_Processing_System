@@ -41,16 +41,21 @@ class PaymentServiceImplemenationTest {
     class CreatePayment {
 
         @Test
-        void happyPath_savesPaymentWithCreatedStatusAndRecordsHistory() {
+        void happyPath_savesPaymentAndRunsFullLifecycleToCompleted() {
+            // createPayment() drives the payment synchronously through the whole
+            // CREATED -> VALIDATED -> SENT -> COMPLETED lifecycle (broadcasting each
+            // step over websockets for the frontend's progress stepper), so a
+            // successful call returns a COMPLETED payment with 4 history entries.
             Payment payment = validPayment("idem-1");
 
             Payment result = service.createPayment(payment);
 
             assertAll(
                 () -> assertNotNull(result.getId()),
-                () -> assertEquals(PaymentStatus.CREATED.name(), result.getStatus()),
-                () -> assertEquals(1, historyRepository.saved.size()),
-                () -> assertEquals(PaymentStatus.CREATED.name(), historyRepository.saved.getFirst().getToStatus())
+                () -> assertEquals(PaymentStatus.COMPLETED.name(), result.getStatus()),
+                () -> assertEquals(4, historyRepository.saved.size()),
+                () -> assertEquals(PaymentStatus.CREATED.name(), historyRepository.saved.getFirst().getToStatus()),
+                () -> assertEquals(PaymentStatus.COMPLETED.name(), historyRepository.saved.getLast().getToStatus())
             );
         }
 
@@ -59,9 +64,11 @@ class PaymentServiceImplemenationTest {
             Payment payment = validPayment("idem-force");
             payment.setStatus("COMPLETED");
 
-            Payment result = service.createPayment(payment);
+            service.createPayment(payment);
 
-            assertEquals(PaymentStatus.CREATED.name(), result.getStatus());
+            // Regardless of the final (auto-completed) status, the very first
+            // persisted state must always be CREATED, ignoring caller input.
+            assertEquals(PaymentStatus.CREATED.name(), historyRepository.saved.getFirst().getToStatus());
         }
 
         @Test
@@ -75,51 +82,79 @@ class PaymentServiceImplemenationTest {
         }
 
         @Test
-        void invalidAmount_throwsValidationException() {
+        void invalidAmount_resultsInFailedPayment() {
+            // createPayment() catches validation failures internally and returns a
+            // FAILED payment (CREATED -> FAILED) instead of throwing, so the caller
+            // always gets a response back rather than an HTTP 500.
             Payment payment = validPayment("idem-bad-amount");
             payment.setAmount(new BigDecimal("-1.00"));
 
-            assertThrows(ValidationException.class, () -> service.createPayment(payment));
+            Payment result = service.createPayment(payment);
+
+            assertAll(
+                () -> assertEquals(PaymentStatus.FAILED.name(), result.getStatus()),
+                () -> assertEquals("VALIDATION_FAILED", result.getErrorCode())
+            );
         }
 
         @Test
-        void nullAmount_throwsValidationException() {
+        void nullAmount_resultsInFailedPayment() {
             Payment payment = validPayment("idem-null-amount");
             payment.setAmount(null);
 
-            assertThrows(ValidationException.class, () -> service.createPayment(payment));
+            Payment result = service.createPayment(payment);
+
+            assertAll(
+                () -> assertEquals(PaymentStatus.FAILED.name(), result.getStatus()),
+                () -> assertEquals("VALIDATION_FAILED", result.getErrorCode())
+            );
         }
 
         @Test
-        void unsupportedCurrency_throwsValidationException() {
+        void unsupportedCurrency_resultsInFailedPayment() {
             Payment payment = validPayment("idem-cur");
             payment.setCurrency("BTC");
 
-            assertThrows(ValidationException.class, () -> service.createPayment(payment));
+            Payment result = service.createPayment(payment);
+
+            assertAll(
+                () -> assertEquals(PaymentStatus.FAILED.name(), result.getStatus()),
+                () -> assertEquals("VALIDATION_FAILED", result.getErrorCode())
+            );
         }
 
         @Test
-        void sameSourceAndDestinationAccount_throwsValidationException() {
+        void sameSourceAndDestinationAccount_resultsInFailedPayment() {
             Payment payment = validPayment("idem-same-acc");
             payment.setSourceAccount("ACC12345");
             payment.setDestinationAccount("ACC12345");
 
-            assertThrows(ValidationException.class, () -> service.createPayment(payment));
+            Payment result = service.createPayment(payment);
+
+            assertAll(
+                () -> assertEquals(PaymentStatus.FAILED.name(), result.getStatus()),
+                () -> assertEquals("VALIDATION_FAILED", result.getErrorCode())
+            );
         }
     }
 
     @Nested
     class TransitionStatus {
 
+        // NOTE: createPayment() now drives a successful payment synchronously all
+        // the way to COMPLETED, so these tests seed a payment directly into the
+        // repository at the desired starting status rather than going through
+        // createPayment(), in order to exercise transitionStatus() in isolation.
+
         @Test
         void createdToValidated_succeedsAndRecordsHistory() {
-            Payment payment = service.createPayment(validPayment("idem-tr-1"));
+            Payment payment = paymentRepository.save(validPayment("idem-tr-1"));
 
             Payment result = service.transitionStatus(payment.getId(), PaymentStatus.VALIDATED);
 
             assertAll(
                 () -> assertEquals(PaymentStatus.VALIDATED.name(), result.getStatus()),
-                () -> assertEquals(2, historyRepository.saved.size()),
+                () -> assertEquals(1, historyRepository.saved.size()),
                 () -> assertEquals(PaymentStatus.VALIDATED.name(), historyRepository.saved.getLast().getToStatus()),
                 () -> assertEquals(PaymentStatus.CREATED.name(), historyRepository.saved.getLast().getFromStatus())
             );
@@ -127,7 +162,7 @@ class PaymentServiceImplemenationTest {
 
         @Test
         void invalidTransition_createdToCompleted_throwsInvalidStatusTransitionException() {
-            Payment payment = service.createPayment(validPayment("idem-inv-1"));
+            Payment payment = paymentRepository.save(validPayment("idem-inv-1"));
 
             InvalidStatusTransitionException ex = assertThrows(InvalidStatusTransitionException.class,
                 () -> service.transitionStatus(payment.getId(), PaymentStatus.COMPLETED));
@@ -143,6 +178,32 @@ class PaymentServiceImplemenationTest {
             assertThrows(PaymentNotFoundException.class,
                 () -> service.transitionStatus(99999L, PaymentStatus.VALIDATED));
         }
+
+        @Test
+        void completingPayment_transfersFundsBetweenAccounts() {
+            InMemoryAccountRepository accountRepository = new InMemoryAccountRepository();
+            accountRepository.save(new com.neueda.model.Account(
+                    null, "SRC12345", "Source Holder", "USD", new BigDecimal("500.00"), "ACTIVE"));
+            accountRepository.save(new com.neueda.model.Account(
+                    null, "DST12345", "Dest Holder", "USD", new BigDecimal("100.00"), "ACTIVE"));
+
+            PaymentServiceImplemenation serviceWithAccounts = new PaymentServiceImplemenation(
+                    paymentRepository, historyRepository, null, accountRepository);
+
+            Payment sentPayment = validPayment("idem-transfer-1");
+            sentPayment.setStatus(PaymentStatus.SENT.name());
+            paymentRepository.save(sentPayment);
+
+            Payment result = serviceWithAccounts.transitionStatus(sentPayment.getId(), PaymentStatus.COMPLETED);
+
+            assertAll(
+                () -> assertEquals(PaymentStatus.COMPLETED.name(), result.getStatus()),
+                () -> assertEquals(new BigDecimal("450.00"),
+                        accountRepository.findByAccountNumber("SRC12345").orElseThrow().getBalance()),
+                () -> assertEquals(new BigDecimal("150.00"),
+                        accountRepository.findByAccountNumber("DST12345").orElseThrow().getBalance())
+            );
+        }
     }
 
     @Test
@@ -157,13 +218,12 @@ class PaymentServiceImplemenationTest {
     @Test
     void getPaymentHistoryReturnsPersistedHistoryForExistingPayment() {
         Payment saved = service.createPayment(validPayment("idem-history-1"));
-        service.transitionStatus(saved.getId(), PaymentStatus.VALIDATED);
 
         List<PaymentHistory> history = service.getPaymentHistory(saved.getId());
 
         assertAll(
-            () -> assertEquals(2, history.size()),
-            () -> assertEquals(PaymentStatus.VALIDATED.name(), history.getFirst().getToStatus()),
+            () -> assertEquals(4, history.size()),
+            () -> assertEquals(PaymentStatus.COMPLETED.name(), history.getFirst().getToStatus()),
             () -> assertEquals(PaymentStatus.CREATED.name(), history.getLast().getToStatus())
         );
     }
@@ -175,9 +235,13 @@ class PaymentServiceImplemenationTest {
 
     @Test
     void getPaymentsByStatusReturnsFilteredPayments() {
-        service.createPayment(validPayment("idem-status-1"));
-        Payment validated = service.createPayment(validPayment("idem-status-2"));
-        service.transitionStatus(validated.getId(), PaymentStatus.VALIDATED);
+        Payment created = validPayment("idem-status-1");
+        created.setStatus(PaymentStatus.CREATED.name());
+        paymentRepository.save(created);
+
+        Payment validated = validPayment("idem-status-2");
+        validated.setStatus(PaymentStatus.VALIDATED.name());
+        paymentRepository.save(validated);
 
         List<Payment> createdPayments = service.getPaymentsByStatus("created");
         List<Payment> validatedPayments = service.getPaymentsByStatus("VALIDATED");
@@ -216,12 +280,13 @@ class PaymentServiceImplemenationTest {
 
     @Test
     void getPaymentStatsReturnsAggregatesForPayments() {
-        Payment completed = service.createPayment(validPayment("idem-stats-1"));
+        Payment completed = validPayment("idem-stats-1");
         completed.setStatus(PaymentStatus.COMPLETED.name());
-        paymentRepository.updatePayment(completed);
+        paymentRepository.save(completed);
 
-        Payment failed = service.createPayment(validPayment("idem-stats-2"));
-        service.transitionStatus(failed.getId(), PaymentStatus.FAILED);
+        Payment failed = validPayment("idem-stats-2");
+        failed.setStatus(PaymentStatus.FAILED.name());
+        paymentRepository.save(failed);
 
         PaymentStatsResponse stats = service.getPaymentStats();
 
@@ -292,6 +357,40 @@ class PaymentServiceImplemenationTest {
                 payment.setErrorCode(errorCode);
                 payment.setDescription(userFriendlyMessage);
             });
+        }
+    }
+
+    private static class InMemoryAccountRepository implements com.neueda.repository.AccountRepository {
+        private final List<com.neueda.model.Account> accounts = new ArrayList<>();
+        private long nextId = 1L;
+
+        @Override
+        public com.neueda.model.Account save(com.neueda.model.Account account) {
+            if (account.getId() == null) {
+                account.setId(nextId++);
+            }
+            accounts.add(account);
+            return account;
+        }
+
+        @Override
+        public Optional<com.neueda.model.Account> findById(Long id) {
+            return accounts.stream().filter(a -> id.equals(a.getId())).findFirst();
+        }
+
+        @Override
+        public Optional<com.neueda.model.Account> findByAccountNumber(String accountNumber) {
+            return accounts.stream().filter(a -> accountNumber.equals(a.getAccountNumber())).findFirst();
+        }
+
+        @Override
+        public List<com.neueda.model.Account> findAll() {
+            return List.copyOf(accounts);
+        }
+
+        @Override
+        public void updateBalance(String accountNumber, BigDecimal newBalance) {
+            findByAccountNumber(accountNumber).ifPresent(a -> a.setBalance(newBalance));
         }
     }
 
