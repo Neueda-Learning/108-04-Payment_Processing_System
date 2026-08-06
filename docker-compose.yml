@@ -36,7 +36,7 @@ services:
       SPRING_DATASOURCE_USERNAME: app_user
       SPRING_DATASOURCE_PASSWORD: app_password
     ports:
-      - "8080:8080"    # Also exposed directly so you can call the API from outside if needed
+      - "8090:8080"    # 8080 may be taken by Jenkins; nginx proxies internally on :8080
 
   # ── Python chatbot ─────────────────────────────────────────────────────────
   chatbot:
