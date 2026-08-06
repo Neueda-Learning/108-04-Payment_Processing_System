@@ -26,7 +26,20 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker-compose build'
+
+                withCredentials([
+                    string(
+                        credentialsId: 'GEMINI_API_KEY',
+                        variable: 'GEMINI_API_KEY'
+                    )
+                ]) {
+
+                    sh '''
+                    docker-compose build
+                    '''
+
+                }
+
             }
         }
 
@@ -42,8 +55,6 @@ pipeline {
                 ]) {
 
                     sh '''
-                    export GEMINI_API_KEY=$GEMINI_API_KEY
-
                     docker-compose up -d
                     '''
 
