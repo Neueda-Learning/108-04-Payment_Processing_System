@@ -14,12 +14,16 @@ function PaymentsPage() {
     paymentType: "IMMEDIATE"
   });
 
-  const [senderCurrency, setSenderCurrency] = useState("USD"); // Sender's account currency
-  const [receiverInfo, setReceiverInfo] = useState(null); // { name, currency }
-  const [receiverStatus, setReceiverStatus] = useState("idle"); // idle | loading | found | not_found
+  const [senderCurrency, setSenderCurrency] = useState("USD"); 
+  const [receiverInfo, setReceiverInfo] = useState(null); 
+  const [receiverStatus, setReceiverStatus] = useState("idle"); 
   const debounceRef = useRef(null);
 
-  // Fetch sender's account details to get currency
+  // NEW: generate once when payment page opens
+  const [idempotencyKey] = useState(() => `idem-${crypto.randomUUID()}`);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+
   useEffect(() => {
     const sourceAccount = localStorage.getItem("account");
     if (sourceAccount) {
@@ -34,9 +38,10 @@ function PaymentsPage() {
     }
   }, []);
 
-  // Look up receiver name when account number changes
+
   useEffect(() => {
     const acc = payment.destinationAccount.trim();
+
     if (!acc) {
       setReceiverInfo(null);
       setReceiverStatus("idle");
@@ -45,10 +50,14 @@ function PaymentsPage() {
 
     setReceiverStatus("loading");
     clearTimeout(debounceRef.current);
+
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await axios.get(`${API_BASE}/accounts/${acc}`);
-        setReceiverInfo({ name: res.data.accountHolderName, currency: res.data.accountCurrencyType });
+        setReceiverInfo({
+          name: res.data.accountHolderName,
+          currency: res.data.accountCurrencyType
+        });
         setReceiverStatus("found");
       } catch {
         setReceiverInfo(null);
@@ -59,11 +68,18 @@ function PaymentsPage() {
     return () => clearTimeout(debounceRef.current);
   }, [payment.destinationAccount]);
 
+
   const handleChange = (e) => {
     setPayment({ ...payment, [e.target.name]: e.target.value });
   };
 
+
   const handleSubmit = async () => {
+
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
     try {
       await axios.get(`${API_BASE}/accounts/${payment.destinationAccount}`);
 
@@ -74,7 +90,10 @@ function PaymentsPage() {
             status: "CREATED",
             sourceAccount: localStorage.getItem("account"),
             destinationAccount: payment.destinationAccount,
-            idempotencyKey: `idem-${Date.now()}`,
+
+            // CHANGED: same key generated when page opened
+            idempotencyKey: idempotencyKey,
+
             description: payment.summary,
             currency: senderCurrency,
             paymentType: payment.paymentType,
@@ -82,33 +101,48 @@ function PaymentsPage() {
           },
         },
       });
+
     } catch (error) {
+
+      setIsSubmitting(false);
+
       if (error.response?.status === 404) {
         alert("Destination account does not exist");
       } else if (!error.response) {
         alert("Cannot connect to server. Is the backend running?");
       } else {
-        alert("Error " + error.response.status + ": " + (error.response.data?.message || error.message));
+        alert(
+          "Error " +
+          error.response.status +
+          ": " +
+          (error.response.data?.message || error.message)
+        );
       }
     }
   };
 
+
   const sourceAccount = localStorage.getItem("account") || "-";
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center px-4 py-10">
 
-      {/* Card */}
       <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-xl overflow-hidden">
 
-        {/* Red header stripe */}
         <div className="bg-red-600 px-6 pt-7 pb-10">
-          <p className="text-xs font-bold uppercase tracking-widest text-red-200">FlashPay</p>
-          <h1 className="mt-1 text-2xl font-bold text-white">Send Money</h1>
-          <p className="mt-0.5 text-sm text-red-200">From: <span className="text-white font-semibold">{sourceAccount}</span></p>
+          <p className="text-xs font-bold uppercase tracking-widest text-red-200">
+            FlashPay
+          </p>
+          <h1 className="mt-1 text-2xl font-bold text-white">
+            Send Money
+          </h1>
+          <p className="mt-0.5 text-sm text-red-200">
+            From: <span className="text-white font-semibold">{sourceAccount}</span>
+          </p>
         </div>
 
-        {/* Pull-up white section */}
+
         <div className="-mt-5 bg-white dark:bg-gray-900 rounded-t-3xl px-6 pt-6 pb-8 space-y-5">
 
           {/* Destination account + receiver name */}
