@@ -147,9 +147,6 @@ function PaymentProgressPage() {
 
         {/* Wide Razorpay-style stepper */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
-          <p className="text-sm font-medium text-gray-500 mb-8">
-            Transaction ID: <span className="text-gray-900 font-semibold">{paymentId || "—"}</span>
-          </p>
 
           {/* Steps row */}
           <div className="relative flex items-start justify-between">
