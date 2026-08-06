@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -11,13 +11,17 @@ function LoginPage() {
     accountNumber: "",
     accountHolderName: "",
     balance: "",
-    accountCurrencyType: "RUPEES",
+    accountCurrencyType: "USD",
     status: "ACTIVE"
-
-    
   });
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (localStorage.getItem("account")) {
+      navigate("/home", { replace: true });
+    }
+  }, [navigate]);
 
 
  const handleLogin = async () => {
@@ -74,205 +78,129 @@ function LoginPage() {
 
 
   return (
+    <div className="min-h-screen relative flex items-center justify-center px-4">
 
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4">
-
-
+      {/* Background image */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1600&q=80')"
-        }}
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1600&q=80')" }}
       />
+      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm" />
 
+      <div className="relative z-10 w-full max-w-sm">
 
-      <div className="absolute inset-0 bg-white/85"></div>
-
-
-      <div className="relative z-10 bg-white/95 w-full max-w-md rounded-2xl shadow-xl p-8">
-
-
+        {/* Brand */}
         <div className="text-center mb-8">
-
-          <h1 className="text-3xl font-bold">
-            FlashPay
-          </h1>
-
-          <p className="text-gray-500 mt-2">
-            Fast • Secure • Instant Payments
-          </p>
-
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-600 mb-4 shadow-lg shadow-red-200">
+            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">FlashPay</h1>
+          <p className="text-sm text-gray-500 mt-1">Fast • Secure • Instant Payments</p>
         </div>
 
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
+          <h2 className="text-base font-semibold text-gray-800 mb-4">Login to your account</h2>
 
-        {/* Login Section */}
+          <input
+            type="text"
+            placeholder="Enter account number"
+            value={account}
+            onChange={(e) => setAccount(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+          />
 
-        <h2 className="text-xl font-semibold mb-4">
-          Account Login
-        </h2>
+          <button
+            onClick={handleLogin}
+            className="w-full mt-3 bg-red-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-red-700 active:scale-95 transition shadow-sm shadow-red-200"
+          >
+            Login
+          </button>
 
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span className="text-xs text-gray-400">or</span>
+            <div className="flex-1 h-px bg-gray-100" />
+          </div>
 
-        <input
-          type="text"
-          placeholder="Enter account number"
-          value={account}
-          onChange={(e)=>setAccount(e.target.value)}
-          className="w-full px-4 py-3 border rounded-lg"
-        />
-
-
-        <button
-          onClick={handleLogin}
-          className="w-full mt-5 bg-red-600 text-white py-3 rounded-lg"
-        >
-          Login
-        </button>
-
-
-
-        <div className="text-center my-5 text-gray-400">
-          OR
+          <button
+            onClick={() => setShowCreate(true)}
+            className="w-full border border-gray-200 text-gray-700 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 active:scale-95 transition"
+          >
+            Create New Account
+          </button>
         </div>
 
-
-
-        {/* Create Account Button */}
-
-        <button
-          onClick={()=>setShowCreate(true)}
-          className="w-full border border-red-600 text-red-600 py-3 rounded-lg"
-        >
-          Create New Account
-        </button>
-
-
-
+        <p className="text-center text-xs text-gray-400 mt-5">
+          By continuing you agree to FlashPay's Terms & Privacy Policy
+        </p>
       </div>
 
-
-
       {/* Create Account Popup */}
-
       {showCreate && (
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 px-4 pb-4 sm:pb-0">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
 
-        <div className="
-          fixed inset-0 
-          bg-black/40 
-          flex items-center 
-          justify-center
-          z-50
-        ">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-bold text-gray-900">Create Account</h2>
+              <button onClick={() => setShowCreate(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 text-sm transition">✕</button>
+            </div>
 
+            <div className="space-y-3">
+              {[
+                ["accountNumber", "Account Number"],
+                ["accountHolderName", "Full Name"],
+                ["balance", "Initial Balance"],
+              ].map(([key, label]) => (
+                <input
+                  key={key}
+                  placeholder={label}
+                  value={newAccount[key]}
+                  onChange={(e) => setNewAccount({ ...newAccount, [key]: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+                />
+              ))}
 
-          <div className="
-            bg-white
-            rounded-xl
-            p-6
-            w-full
-            max-w-md
-          ">
-
-
-            <h2 className="text-xl font-bold mb-5">
-              Create Account
-            </h2>
-
-
-
-            {[
-              ["accountNumber","Account Number"],
-              ["accountHolderName","Account Holder Name"],
-              ["balance","Initial Balance"]
-            ].map(([key,label])=>(
-
-              <input
-                key={key}
-                placeholder={label}
-                value={newAccount[key]}
-                onChange={(e)=>
-                  setNewAccount({
-                    ...newAccount,
-                    [key]:e.target.value
-                  })
-                }
-                className="
-                  w-full
-                  mb-3
-                  px-4
-                  py-2
-                  border
-                  rounded
-                "
-              />
-
-            ))}
-
-
-
-            <select
-              className="w-full mb-3 px-4 py-2 border rounded"
-              value={newAccount.accountCurrencyType}
-              onChange={(e)=>
-                setNewAccount({
-                  ...newAccount,
-                  accountCurrencyType:e.target.value
-                })
-              }
-            >
-
-              <option>RUPEES</option>
-              <option>USD</option>
-              <option>EUR</option>
-              <option>GBP</option>
-
-            </select>
-
-
+              <select
+                value={newAccount.accountCurrencyType}
+                onChange={(e) => setNewAccount({ ...newAccount, accountCurrencyType: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+              >
+                <option value="USD">USD – US Dollar</option>
+                <option value="EUR">EUR – Euro</option>
+                <option value="GBP">GBP – British Pound</option>
+                <option value="INR">INR – Indian Rupee</option>
+                <option value="JPY">JPY – Japanese Yen</option>
+                <option value="AUD">AUD – Australian Dollar</option>
+                <option value="CAD">CAD – Canadian Dollar</option>
+                <option value="CHF">CHF – Swiss Franc</option>
+                <option value="CNY">CNY – Chinese Yuan</option>
+                <option value="MXN">MXN – Mexican Peso</option>
+              </select>
+            </div>
 
             <button
               onClick={handleCreateAccount}
-              className="
-                w-full
-                bg-red-600
-                text-white
-                py-3
-                rounded
-                mb-3
-              "
+              className="w-full mt-4 bg-red-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-red-700 active:scale-95 transition shadow-sm shadow-red-200"
             >
               Create Account
             </button>
-
-
-
             <button
-              onClick={()=>setShowCreate(false)}
-              className="
-                w-full
-                border
-                py-3
-                rounded
-              "
+              onClick={() => setShowCreate(false)}
+              className="w-full mt-2 py-3 text-sm text-gray-500 hover:text-gray-700 transition"
             >
               Cancel
             </button>
-
-
           </div>
-
-
         </div>
-
       )}
 
-
-
     </div>
-
   );
 }
-
 
 export default LoginPage;
