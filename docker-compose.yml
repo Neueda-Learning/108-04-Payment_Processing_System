@@ -59,7 +59,7 @@ services:
       - spring-app
       - chatbot
     ports:
-      - "80:80"        # Access the app at http://<vm-ip>/
+      - "5173:3000"        # Access the app at http://<vm-ip>:5173/
 
 volumes:
   mysql-data:
