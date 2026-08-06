@@ -21,6 +21,8 @@ import com.neueda.dto.DashboardStatsResponse.FailureReasonCount;
 import com.neueda.dto.DashboardStatsResponse.StageDuration;
 import com.neueda.dto.DashboardStatsResponse.SuccessRatePoint;
 import com.neueda.dto.DashboardStatsResponse.CurrencyBreakdown;
+import com.neueda.dto.DashboardStatsResponse.AccountVolume;
+import com.neueda.dto.DashboardStatsResponse.HourlyVolume;
 import com.neueda.util.ErrorMessageMapping;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -370,13 +372,24 @@ public class PaymentServiceImplemenation implements PaymentService {
         double successRate = totalPayments == 0 ? 0.0 : (successfulPayments * 100.0) / totalPayments;
         double failureRate = totalPayments == 0 ? 0.0 : (failedPayments * 100.0) / totalPayments;
 
+        BigDecimal averageAmount = totalPayments == 0 ? BigDecimal.ZERO
+            : totalAmount.divide(BigDecimal.valueOf(totalPayments), 2, java.math.RoundingMode.HALF_UP);
+
+        BigDecimal largestAmount = payments.stream()
+            .map(Payment::getAmount)
+            .filter(Objects::nonNull)
+            .max(BigDecimal::compareTo)
+            .orElse(BigDecimal.ZERO);
+
         return new PaymentStatsResponse(
             totalPayments,
             successfulPayments,
             failedPayments,
             totalAmount,
             successRate,
-            failureRate
+            failureRate,
+            averageAmount,
+            largestAmount
         );
         }
 
@@ -450,9 +463,36 @@ public class PaymentServiceImplemenation implements PaymentService {
                 .toList();
 
         List<StageDuration> avgStageDuration = computeAvgStageDurations(inRange);
+        double avgTotalProcessingSeconds = computeAvgTotalProcessingSeconds(inRange);
+
+        List<AccountVolume> topSenders = inRange.stream()
+                .filter(p -> p.getSourceAccount() != null)
+                .collect(Collectors.groupingBy(Payment::getSourceAccount))
+                .entrySet().stream()
+                .map(e -> new AccountVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
+                .sorted(Comparator.comparingLong(AccountVolume::count).reversed())
+                .limit(5)
+                .toList();
+
+        List<AccountVolume> topReceivers = inRange.stream()
+                .filter(p -> p.getDestinationAccount() != null)
+                .collect(Collectors.groupingBy(Payment::getDestinationAccount))
+                .entrySet().stream()
+                .map(e -> new AccountVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
+                .sorted(Comparator.comparingLong(AccountVolume::count).reversed())
+                .limit(5)
+                .toList();
+
+        List<HourlyVolume> volumeByHour = inRange.stream()
+                .collect(Collectors.groupingBy(p -> p.getCreatedAt().getHour()))
+                .entrySet().stream()
+                .map(e -> new HourlyVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
+                .sorted(Comparator.comparingInt(HourlyVolume::hour))
+                .toList();
 
         return new DashboardStatsResponse(resolvedFrom, resolvedTo, statusDistribution, volumeOverTime,
-                failureReasons, avgStageDuration, successRateOverTime, currencyBreakdown);
+                failureReasons, avgStageDuration, successRateOverTime, currencyBreakdown,
+                topSenders, topReceivers, avgTotalProcessingSeconds, volumeByHour);
     }
 
     private static BigDecimal sumAmounts(List<Payment> payments) {
@@ -467,7 +507,6 @@ public class PaymentServiceImplemenation implements PaymentService {
         Map<Long, List<PaymentHistory>> historyByPayment = historyRepository.findAll().stream()
                 .filter(h -> paymentIds.contains(h.getPaymentId()))
                 .collect(Collectors.groupingBy(PaymentHistory::getPaymentId));
-
         Map<String, List<Double>> secondsByStage = new LinkedHashMap<>();
         for (List<PaymentHistory> rows : historyByPayment.values()) {
             List<PaymentHistory> sorted = rows.stream()
@@ -491,6 +530,34 @@ public class PaymentServiceImplemenation implements PaymentService {
                 .map(e -> new StageDuration(e.getKey(),
                         e.getValue().stream().mapToDouble(Double::doubleValue).average().orElse(0.0)))
                 .toList();
+    }
+
+    private double computeAvgTotalProcessingSeconds(List<Payment> inRange) {
+        Set<Long> paymentIds = inRange.stream().map(Payment::getId).collect(Collectors.toSet());
+        Map<Long, List<PaymentHistory>> historyByPayment = historyRepository.findAll().stream()
+                .filter(h -> paymentIds.contains(h.getPaymentId()))
+                .collect(Collectors.groupingBy(PaymentHistory::getPaymentId));
+
+        List<Double> totalSeconds = new ArrayList<>();
+        for (List<PaymentHistory> rows : historyByPayment.values()) {
+            List<PaymentHistory> sorted = rows.stream()
+                    .sorted(Comparator.comparing(PaymentHistory::getTimestamp))
+                    .toList();
+            Optional<PaymentHistory> created = sorted.stream()
+                    .filter(h -> PaymentStatus.CREATED.name().equals(h.getToStatus())).findFirst();
+            Optional<PaymentHistory> terminal = sorted.stream()
+                    .filter(h -> PaymentStatus.COMPLETED.name().equals(h.getToStatus())
+                            || PaymentStatus.FAILED.name().equals(h.getToStatus()))
+                    .findFirst();
+            if (created.isPresent() && terminal.isPresent()
+                    && !terminal.get().getTimestamp().isBefore(created.get().getTimestamp())) {
+                double seconds = Duration.between(
+                        created.get().getTimestamp(), terminal.get().getTimestamp()).toMillis() / 1000.0;
+                totalSeconds.add(seconds);
+            }
+        }
+
+        return totalSeconds.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
 
     /**

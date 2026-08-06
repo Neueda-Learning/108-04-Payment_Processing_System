@@ -73,6 +73,13 @@ function StatsPage() {
     { title: "Successful Payments", value: summary.successfulPayments, description: "Completed transactions", accent: "text-green-600 dark:text-green-400" },
     { title: "Failed Payments", value: summary.failedPayments, description: "Requires attention", accent: "text-red-600 dark:text-red-400" },
     { title: "Total Amount", value: Number(summary.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "Processed value" },
+    { title: "Average Amount", value: Number(summary.averageAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "Per payment" },
+    { title: "Largest Payment", value: Number(summary.largestAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "Highest single amount" },
+    {
+      title: "Avg Processing Time",
+      value: dashboard ? `${Number(dashboard.avgTotalProcessingSeconds || 0).toFixed(1)}s` : "—",
+      description: "Created to completed/failed",
+    },
   ] : Array.from({ length: 4 });
 
   return (
@@ -306,8 +313,49 @@ function StatsPage() {
             ) : <ChartPlaceholder message="No currency data in this date range yet." />}
           </ChartCard>
 
-        </div>
+          <ChartCard title="Top Senders">
+            {dashboard?.topSenders?.length ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={dashboard.topSenders}>
+                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                  <XAxis dataKey="accountNumber" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Payments sent" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <ChartPlaceholder message="No sender activity in this date range yet." />}
+          </ChartCard>
 
+          <ChartCard title="Top Receivers">
+            {dashboard?.topReceivers?.length ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={dashboard.topReceivers}>
+                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                  <XAxis dataKey="accountNumber" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="count" fill="#22c55e" radius={[4, 4, 0, 0]} name="Payments received" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <ChartPlaceholder message="No receiver activity in this date range yet." />}
+          </ChartCard>
+
+          <ChartCard title="Volume by Hour of Day">
+            {dashboard?.volumeByHour?.length ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={dashboard.volumeByHour}>
+                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                  <XAxis dataKey="hour" tick={{ fontSize: 11, fill: axisColor }} tickFormatter={(h) => `${h}:00`} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
+                  <Tooltip contentStyle={tooltipStyle} labelFormatter={(h) => `${h}:00`} />
+                  <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Payments" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <ChartPlaceholder message="No hourly data in this date range yet." />}
+          </ChartCard>
+
+        </div>
 
 
         {/* Info Banner */}

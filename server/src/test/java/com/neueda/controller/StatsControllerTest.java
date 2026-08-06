@@ -37,7 +37,9 @@ class StatsControllerTest {
                 1L,
                 new BigDecimal("425.50"),
                 60.0,
-                20.0
+                20.0,
+                new BigDecimal("85.10"),
+                new BigDecimal("200.00")
         );
 
         mockMvc.perform(get("/stats/payments"))
@@ -61,7 +63,11 @@ class StatsControllerTest {
                 List.of(new DashboardStatsResponse.FailureReasonCount("INSUFFICIENT_FUNDS", 1)),
                 List.of(new DashboardStatsResponse.StageDuration("CREATED_TO_VALIDATED", 1.5)),
                 List.of(new DashboardStatsResponse.SuccessRatePoint("2026-07-15", 100.0)),
-                List.of(new DashboardStatsResponse.CurrencyBreakdown("USD", 2, new BigDecimal("150.00")))
+                List.of(new DashboardStatsResponse.CurrencyBreakdown("USD", 2, new BigDecimal("150.00"))),
+                List.of(new DashboardStatsResponse.AccountVolume("ACC1", 2, new BigDecimal("150.00"))),
+                List.of(new DashboardStatsResponse.AccountVolume("ACC2", 2, new BigDecimal("150.00"))),
+                90.0,
+                List.of(new DashboardStatsResponse.HourlyVolume(14, 2, new BigDecimal("150.00")))
         );
 
         mockMvc.perform(get("/stats/dashboard").param("from", "2026-07-01").param("to", "2026-07-31"))
@@ -81,7 +87,8 @@ class StatsControllerTest {
         LocalDate to = LocalDate.now();
         LocalDate from = to.minusDays(29);
         paymentService.dashboardStats = new DashboardStatsResponse(
-                from, to, List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+                from, to, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), 0.0, List.of());
 
         mockMvc.perform(get("/stats/dashboard"))
                 .andExpect(status().isOk())

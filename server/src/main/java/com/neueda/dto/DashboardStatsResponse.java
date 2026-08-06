@@ -18,6 +18,10 @@ public class DashboardStatsResponse {
     private List<StageDuration> avgStageDuration;
     private List<SuccessRatePoint> successRateOverTime;
     private List<CurrencyBreakdown> currencyBreakdown;
+    private List<AccountVolume> topSenders;
+    private List<AccountVolume> topReceivers;
+    private double avgTotalProcessingSeconds;
+    private List<HourlyVolume> volumeByHour;
 
     public DashboardStatsResponse() {}
 
@@ -27,7 +31,11 @@ public class DashboardStatsResponse {
                                    List<FailureReasonCount> failureReasons,
                                    List<StageDuration> avgStageDuration,
                                    List<SuccessRatePoint> successRateOverTime,
-                                   List<CurrencyBreakdown> currencyBreakdown) {
+                                   List<CurrencyBreakdown> currencyBreakdown,
+                                   List<AccountVolume> topSenders,
+                                   List<AccountVolume> topReceivers,
+                                   double avgTotalProcessingSeconds,
+                                   List<HourlyVolume> volumeByHour) {
         this.from = from;
         this.to = to;
         this.statusDistribution = statusDistribution;
@@ -36,6 +44,10 @@ public class DashboardStatsResponse {
         this.avgStageDuration = avgStageDuration;
         this.successRateOverTime = successRateOverTime;
         this.currencyBreakdown = currencyBreakdown;
+        this.topSenders = topSenders;
+        this.topReceivers = topReceivers;
+        this.avgTotalProcessingSeconds = avgTotalProcessingSeconds;
+        this.volumeByHour = volumeByHour;
     }
 
     public LocalDate getFrom() {
@@ -102,6 +114,38 @@ public class DashboardStatsResponse {
         this.currencyBreakdown = currencyBreakdown;
     }
 
+    public List<AccountVolume> getTopSenders() {
+        return topSenders;
+    }
+
+    public void setTopSenders(List<AccountVolume> topSenders) {
+        this.topSenders = topSenders;
+    }
+
+    public List<AccountVolume> getTopReceivers() {
+        return topReceivers;
+    }
+
+    public void setTopReceivers(List<AccountVolume> topReceivers) {
+        this.topReceivers = topReceivers;
+    }
+
+    public double getAvgTotalProcessingSeconds() {
+        return avgTotalProcessingSeconds;
+    }
+
+    public void setAvgTotalProcessingSeconds(double avgTotalProcessingSeconds) {
+        this.avgTotalProcessingSeconds = avgTotalProcessingSeconds;
+    }
+
+    public List<HourlyVolume> getVolumeByHour() {
+        return volumeByHour;
+    }
+
+    public void setVolumeByHour(List<HourlyVolume> volumeByHour) {
+        this.volumeByHour = volumeByHour;
+    }
+
     public record StatusCount(String status, long count) {}
 
     public record VolumePoint(String date, long count, BigDecimal totalAmount) {}
@@ -113,4 +157,8 @@ public class DashboardStatsResponse {
     public record SuccessRatePoint(String date, double successRate) {}
 
     public record CurrencyBreakdown(String currency, long count, BigDecimal totalAmount) {}
+
+    public record AccountVolume(String accountNumber, long count, BigDecimal totalAmount) {}
+
+    public record HourlyVolume(int hour, long count, BigDecimal totalAmount) {}
 }
