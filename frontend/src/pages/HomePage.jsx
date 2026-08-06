@@ -41,7 +41,7 @@ function HomePage() {
     try {
 
       const response = await fetch(
-        "http://127.0.0.1:8000/chat",
+        `${import.meta.env.VITE_CHATBOT_URL}/chat`,
         {
           method: "POST",
           headers: {

@@ -28,7 +28,7 @@ function PaymentsPage() {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await axios.get(`http://localhost:8080/accounts/${acc}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/accounts/${acc}`);
         setReceiverInfo({ name: res.data.accountHolderName, currency: res.data.accountCurrencyType });
         setReceiverStatus("found");
       } catch {
@@ -47,7 +47,7 @@ function PaymentsPage() {
   const handleSubmit = async () => {
     try {
       const accountResponse = await axios.get(
-        `http://localhost:8080/accounts/${payment.destinationAccount}`
+        `${import.meta.env.VITE_API_URL}/accounts/${payment.destinationAccount}`
       );
       const destinationAccount = accountResponse.data;
 
