@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
+import PageHeader from "../components/PageHeader";
 
 function FAQPage() {
 
@@ -74,19 +75,11 @@ function FAQPage() {
 
 
         {/* Header */}
-        <div className="max-w-4xl mx-auto mb-8">
-
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Frequently Asked Questions
-          </h2>
-
-
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Find quick answers about payments, transactions,
-            security, and FlashPay services.
-          </p>
-
-
+        <div className="max-w-4xl mx-auto">
+          <PageHeader
+            title="Frequently Asked Questions"
+            subtitle="Find quick answers about payments, transactions, security, and FlashPay services."
+          />
         </div>
 
 
@@ -119,6 +112,7 @@ function FAQPage() {
                 onClick={() =>
                   setOpenIndex(openIndex === index ? null : index)
                 }
+                aria-expanded={openIndex === index}
                 className="
                   w-full
                   flex
@@ -128,6 +122,8 @@ function FAQPage() {
                   p-6
                   hover:bg-gray-50 dark:hover:bg-gray-800/60
                   transition
+                  cursor-pointer
+                  focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-500
                 "
               >
 

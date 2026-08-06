@@ -118,7 +118,7 @@ function PaymentProgressPage() {
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Returning to payments in 3 seconds...</p>
             <button
               onClick={() => navigate("/payments", { replace: true })}
-              className={`mt-5 w-full rounded-xl py-3 font-semibold text-white transition ${success ? "bg-green-500 hover:bg-green-600" : "bg-red-600 hover:bg-red-700"}`}
+              className={`mt-5 w-full rounded-xl py-3 font-semibold text-white transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${success ? "bg-green-500 hover:bg-green-600 focus-visible:outline-green-500" : "bg-red-600 hover:bg-red-700 focus-visible:outline-red-500"}`}
             >
               Go Now
             </button>
@@ -224,7 +224,7 @@ function PaymentProgressPage() {
           <button
             type="button"
             onClick={() => navigate("/payments")}
-            className="mt-5 w-full rounded-xl border border-red-600 py-3 text-sm font-semibold text-red-600 dark:text-red-400 transition hover:bg-red-600 hover:text-white"
+            className="mt-5 w-full rounded-xl border border-red-600 py-3 text-sm font-semibold text-red-600 dark:text-red-400 transition hover:bg-red-600 hover:text-white cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
           >
             ← Back to Payments
           </button>

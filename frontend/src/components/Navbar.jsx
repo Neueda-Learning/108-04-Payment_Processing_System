@@ -15,11 +15,17 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [accountInfo, setAccountInfo] = useState(null);
   const dark = useIsDarkMode();
   const dropdownRef = useRef(null);
 
   const accountNumber = localStorage.getItem("account");
+
+  // Close the mobile menu whenever the route changes
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!accountNumber) return;
@@ -46,7 +52,7 @@ function Navbar() {
   const handleToggleTheme = () => toggleTheme();
 
   return (
-    <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-8 py-4 flex items-center justify-between transition-colors">
+    <nav className="relative bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-8 py-4 flex items-center justify-between transition-colors">
 
       {/* Brand */}
       <div
@@ -66,7 +72,8 @@ function Navbar() {
             <button
               key={link.path}
               onClick={() => navigate(link.path)}
-              className={`hidden sm:inline-block px-3 py-1.5 rounded-lg transition cursor-pointer font-medium ${
+              aria-current={active ? "page" : undefined}
+              className={`hidden sm:inline-block px-3 py-1.5 rounded-lg transition cursor-pointer font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 ${
                 active
                   ? "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10"
                   : "text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
@@ -77,11 +84,27 @@ function Navbar() {
           );
         })}
 
+        {/* Mobile menu toggle */}
+        <button
+          onClick={() => setMobileOpen((o) => !o)}
+          aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileOpen}
+          className="sm:hidden flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:border-red-300 hover:bg-red-50 dark:hover:bg-gray-800 transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            {mobileOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
+
         {/* Dark mode toggle */}
         <button
           onClick={handleToggleTheme}
           aria-label="Toggle dark mode"
-          className="ml-1 flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:border-red-300 hover:bg-red-50 dark:hover:bg-gray-800 transition cursor-pointer"
+          className="ml-1 flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:border-red-300 hover:bg-red-50 dark:hover:bg-gray-800 transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
         >
           {dark ? (
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -98,7 +121,7 @@ function Navbar() {
         <div className="relative ml-1" ref={dropdownRef}>
           <button
             onClick={() => setProfileOpen(o => !o)}
-            className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 border border-gray-200 dark:border-gray-700 hover:border-red-300 hover:bg-red-50 dark:hover:bg-gray-800 transition cursor-pointer"
+            className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 border border-gray-200 dark:border-gray-700 hover:border-red-300 hover:bg-red-50 dark:hover:bg-gray-800 transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
           >
             <div className="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center text-white text-xs font-bold">
               {initials}
@@ -162,6 +185,29 @@ function Navbar() {
         </div>
 
       </div>
+
+      {/* Mobile nav panel */}
+      {mobileOpen && (
+        <div className="absolute left-0 right-0 top-full z-40 sm:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-lg px-4 py-3 flex flex-col gap-1">
+          {NAV_LINKS.map((link) => {
+            const active = location.pathname === link.path;
+            return (
+              <button
+                key={link.path}
+                onClick={() => navigate(link.path)}
+                aria-current={active ? "page" : undefined}
+                className={`text-left px-3 py-2.5 rounded-lg font-medium transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 ${
+                  active
+                    ? "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10"
+                    : "text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                }`}
+              >
+                {link.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </nav>
   );
 }

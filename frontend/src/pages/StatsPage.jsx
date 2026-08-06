@@ -6,10 +6,15 @@ import {
   BarChart, Bar, LineChart, Line,
 } from "recharts";
 import Navbar from "../components/Navbar";
+import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/Skeleton";
 import { getStatusChartColor } from "../utils/status";
 import { useIsDarkMode } from "../utils/theme";
 
 const CHART_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#6366f1", "#06b6d4", "#ec4899"];
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const RANGE_STORAGE_KEY = "flashpay:statsDateRange";
 
 function defaultDateRange() {
   const to = new Date();
@@ -17,6 +22,74 @@ function defaultDateRange() {
   from.setDate(from.getDate() - 29);
   const fmt = (d) => d.toISOString().slice(0, 10);
   return { from: fmt(from), to: fmt(to) };
+}
+
+// Read a previously-selected range from this browser tab's session so filters
+// survive navigating away to another page and back, instead of resetting to
+// the default 30-day window every time.
+function initialDateRange() {
+  try {
+    const saved = sessionStorage.getItem(RANGE_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed?.from && parsed?.to) return parsed;
+    }
+  } catch {
+    // ignore malformed/unavailable storage and fall back to the default range
+  }
+  return defaultDateRange();
+}
+
+// The immediately preceding period of equal length, used to compute trend
+// deltas (e.g. "+12% vs previous period") for the range-scoped KPI cards.
+function previousDateRange(range) {
+  const from = new Date(range.from);
+  const to = new Date(range.to);
+  const spanDays = Math.max(1, Math.round((to - from) / 86400000) + 1);
+  const prevTo = new Date(from);
+  prevTo.setDate(prevTo.getDate() - 1);
+  const prevFrom = new Date(prevTo);
+  prevFrom.setDate(prevFrom.getDate() - (spanDays - 1));
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  return { from: fmt(prevFrom), to: fmt(prevTo) };
+}
+
+function countByStatus(dashboardData, status) {
+  return dashboardData?.statusDistribution?.find((s) => s.status === status)?.count ?? 0;
+}
+
+function totalCount(dashboardData) {
+  return dashboardData?.statusDistribution?.reduce((sum, s) => sum + (s.count || 0), 0) ?? 0;
+}
+
+// Percentage change vs the previous period, used to render trend arrows on
+// the KPI cards. Returns null when there's nothing meaningful to compare.
+function trendDelta(current, previous) {
+  if (previous === 0) return current > 0 ? { direction: "up", percent: 100 } : null;
+  const percent = Math.round(((current - previous) / previous) * 100);
+  if (percent === 0) return { direction: "flat", percent: 0 };
+  return { direction: percent > 0 ? "up" : "down", percent: Math.abs(percent) };
+}
+
+function TrendBadge({ trend, goodDirection = "up" }) {
+  if (!trend) return null;
+  const isGood = trend.direction === goodDirection;
+  const isFlat = trend.direction === "flat";
+  const colorClass = isFlat
+    ? "text-gray-500 dark:text-gray-400"
+    : isGood
+    ? "text-green-600 dark:text-green-400"
+    : "text-red-500 dark:text-red-400";
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${colorClass}`}>
+      {!isFlat && (
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={trend.direction === "up" ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+        </svg>
+      )}
+      {isFlat ? "No change" : `${trend.percent}%`}
+    </span>
+  );
 }
 
 function ChartCard({ title, children }) {
@@ -45,22 +118,36 @@ function StatsPage() {
     : { backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 8, color: "#111827" };
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const [range, setRange] = useState(defaultDateRange());
+  const [range, setRange] = useState(initialDateRange);
   const [summary, setSummary] = useState(null);
   const [dashboard, setDashboard] = useState(null);
+  const [prevDashboard, setPrevDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Persist the selected range for this browser tab so it survives navigating
+  // to another page and back instead of resetting to the default window.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(RANGE_STORAGE_KEY, JSON.stringify(range));
+    } catch {
+      // sessionStorage may be unavailable (e.g. private browsing); non-fatal
+    }
+  }, [range]);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
+    const prevRange = previousDateRange(range);
     Promise.all([
-      axios.get("http://localhost:8080/stats/payments"),
-      axios.get("http://localhost:8080/stats/dashboard", { params: { from: range.from, to: range.to } }),
+      axios.get(`${API_BASE}/stats/payments`),
+      axios.get(`${API_BASE}/stats/dashboard`, { params: { from: range.from, to: range.to } }),
+      axios.get(`${API_BASE}/stats/dashboard`, { params: { from: prevRange.from, to: prevRange.to } }),
     ])
-      .then(([summaryRes, dashboardRes]) => {
+      .then(([summaryRes, dashboardRes, prevDashboardRes]) => {
         setSummary(summaryRes.data);
         setDashboard(dashboardRes.data);
+        setPrevDashboard(prevDashboardRes.data);
       })
       .catch(() => setError("Could not load statistics. Is the backend running?"))
       .finally(() => setLoading(false));
@@ -68,13 +155,38 @@ function StatsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const totalPaymentsCount = totalCount(dashboard);
+  const successfulCount = countByStatus(dashboard, "COMPLETED");
+  const failedCount = countByStatus(dashboard, "FAILED");
+  const prevTotalCount = totalCount(prevDashboard);
+  const prevSuccessfulCount = countByStatus(prevDashboard, "COMPLETED");
+  const prevFailedCount = countByStatus(prevDashboard, "FAILED");
+
   const cards = summary ? [
-    { title: "Total Payments", value: summary.totalPayments, description: "Payments processed" },
-    { title: "Successful Payments", value: summary.successfulPayments, description: "Completed transactions", accent: "text-green-600 dark:text-green-400" },
-    { title: "Failed Payments", value: summary.failedPayments, description: "Requires attention", accent: "text-red-600 dark:text-red-400" },
-    { title: "Total Amount", value: Number(summary.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "Processed value" },
-    { title: "Average Amount", value: Number(summary.averageAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "Per payment" },
-    { title: "Largest Payment", value: Number(summary.largestAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "Highest single amount" },
+    {
+      title: "Total Payments",
+      value: totalPaymentsCount,
+      description: "In selected range",
+      trend: trendDelta(totalPaymentsCount, prevTotalCount),
+    },
+    {
+      title: "Successful Payments",
+      value: successfulCount,
+      description: "Completed transactions",
+      accent: "text-green-600 dark:text-green-400",
+      trend: trendDelta(successfulCount, prevSuccessfulCount),
+    },
+    {
+      title: "Failed Payments",
+      value: failedCount,
+      description: "Requires attention",
+      accent: "text-red-600 dark:text-red-400",
+      trend: trendDelta(failedCount, prevFailedCount),
+      goodDirection: "down",
+    },
+    { title: "Total Amount", value: Number(summary.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "All time" },
+    { title: "Average Amount", value: Number(summary.averageAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "Per payment, all time" },
+    { title: "Largest Payment", value: Number(summary.largestAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }), description: "Highest single amount, all time" },
     {
       title: "Avg Processing Time",
       value: dashboard ? `${Number(dashboard.avgTotalProcessingSeconds || 0).toFixed(1)}s` : "—",
@@ -122,41 +234,32 @@ function StatsPage() {
 
 
         {/* Header + date range */}
-        <div className="max-w-6xl mx-auto mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-              Payment Statistics
-            </h2>
-
-            <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-xl">
-              Analyze your payment performance, transaction activity,
-              success rates, and processed amounts.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              aria-label="From date"
-              value={range.from}
-              max={range.to}
-              onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
-              className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200"
-            />
-            <span className="text-gray-400 dark:text-gray-500 text-sm">to</span>
-            <input
-              type="date"
-              aria-label="To date"
-              value={range.to}
-              min={range.from}
-              max={todayStr}
-              onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
-              className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200"
-            />
-          </div>
-
-        </div>
+        <PageHeader
+          title="Payment Statistics"
+          subtitle="Analyze your payment performance, transaction activity, success rates, and processed amounts."
+          actions={
+            <>
+              <input
+                type="date"
+                aria-label="From date"
+                value={range.from}
+                max={range.to}
+                onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 focus-visible:ring-2 focus-visible:ring-red-500 outline-none"
+              />
+              <span className="text-gray-400 dark:text-gray-500 text-sm">to</span>
+              <input
+                type="date"
+                aria-label="To date"
+                value={range.to}
+                min={range.from}
+                max={todayStr}
+                onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 focus-visible:ring-2 focus-visible:ring-red-500 outline-none"
+              />
+            </>
+          }
+        />
 
 
         {error && (
@@ -197,17 +300,20 @@ function StatsPage() {
             >
 
               <h3 className="text-sm text-gray-500 dark:text-gray-400">
-                {stat?.title || "—"}
+                {loading ? <Skeleton className="h-4 w-24" /> : (stat?.title || "—")}
               </h3>
 
 
-              <p className={`text-3xl font-bold mt-3 ${stat?.accent || "text-gray-900 dark:text-gray-100"}`}>
-                {loading ? "…" : (stat?.value ?? "—")}
-              </p>
+              <div className="flex items-baseline gap-2 mt-3">
+                <p className={`text-3xl font-bold ${stat?.accent || "text-gray-900 dark:text-gray-100"}`}>
+                  {loading ? <Skeleton className="h-8 w-20" /> : (stat?.value ?? "—")}
+                </p>
+                {!loading && <TrendBadge trend={stat?.trend} goodDirection={stat?.goodDirection || "up"} />}
+              </div>
 
 
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                {stat?.description || ""}
+                {loading ? <Skeleton className="h-4 w-32" /> : (stat?.description || "")}
               </p>
 
 
@@ -221,6 +327,16 @@ function StatsPage() {
 
 
         {/* Charts */}
+        {loading ? (
+          <div className="max-w-6xl mx-auto mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200 dark:border-gray-800 rounded-2xl shadow-lg p-6">
+                <Skeleton className="h-4 w-32 mb-4" />
+                <Skeleton className="h-56 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="max-w-6xl mx-auto mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           <ChartCard title="Status Distribution">
@@ -356,6 +472,7 @@ function StatsPage() {
           </ChartCard>
 
         </div>
+        )}
 
 
         {/* Info Banner */}

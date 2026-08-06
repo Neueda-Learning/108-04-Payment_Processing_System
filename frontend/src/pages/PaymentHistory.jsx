@@ -1,17 +1,10 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/Navbar";
-
-const getStatusBadgeClasses = (status) => {
-  const normalized = String(status || "").toUpperCase();
-  if (normalized === "COMPLETED") {
-    return "bg-green-50 text-green-700 border-green-200";
-  }
-  if (normalized === "FAILED") {
-    return "bg-red-50 text-red-700 border-red-200";
-  }
-  return "bg-yellow-50 text-yellow-700 border-yellow-200";
-};
+import PageHeader from "../components/PageHeader";
+import Skeleton from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { getStatusBadgeClasses } from "../utils/status";
 
 function PaymentHistory() {
   const accountNumber = localStorage.getItem("account");
@@ -165,43 +158,48 @@ function PaymentHistory() {
 
 
         {/* Header */}
-        <div className="max-w-6xl mx-auto mb-8">
-
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Payment History
-          </h2>
-
-          <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-xl text-sm sm:text-base">
-            View all your previous transactions, payment status,
-            receiver details, and descriptions in one secure place.
-          </p>
-
-        </div>
+        <PageHeader
+          title="Payment History"
+          subtitle="View all your previous transactions, payment status, receiver details, and descriptions in one secure place."
+        />
 
 
 
 
 
 
-         {/* Loading State */}
+         {/* Loading State - skeleton rows so the table shape is visible immediately */}
          {loading && (
-           <div className="max-w-6xl mx-auto text-center py-12 text-gray-500 dark:text-gray-400 text-sm">
-             Loading your payment history...
+           <div className="max-w-6xl mx-auto bg-white/95 dark:bg-gray-900/95 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg overflow-hidden">
+             {Array.from({ length: 6 }).map((_, i) => (
+               <div key={i} className="flex items-center gap-6 px-6 py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                 <Skeleton className="h-4 w-14" />
+                 <Skeleton className="h-5 w-16 rounded-full" />
+                 <Skeleton className="h-4 w-20" />
+                 <Skeleton className="h-4 w-28" />
+                 <Skeleton className="h-4 w-32" />
+                 <Skeleton className="h-5 w-20 rounded-full" />
+                 <Skeleton className="h-4 w-24 ml-auto" />
+               </div>
+             ))}
            </div>
          )}
 
          {/* Error State */}
          {error && !loading && (
-           <div className="max-w-6xl mx-auto text-center py-12 text-red-500 dark:text-red-400 text-sm">
+           <div className="max-w-6xl mx-auto rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm px-4 py-3 text-center">
              {error}
            </div>
          )}
 
          {/* Empty State */}
          {!loading && !error && payments.length === 0 && (
-           <div className="max-w-6xl mx-auto text-center py-12">
-             <p className="text-gray-600 dark:text-gray-300 text-lg">No payments found</p>
-             <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Your payment history will appear here</p>
+           <div className="max-w-6xl mx-auto">
+             <EmptyState
+               icon="\uD83D\uDCB3"
+               title="No payments found"
+               description="Your payment history will appear here once you send or receive a payment."
+             />
            </div>
          )}
 
@@ -256,6 +254,8 @@ function PaymentHistory() {
                      Date
                    </th>
 
+                   <th className="px-6 py-4 w-8" aria-hidden="true"></th>
+
                  </tr>
 
                </thead>
@@ -271,13 +271,19 @@ function PaymentHistory() {
 
                     <tr
                       key={payment.id}
+                      tabIndex={0}
                       className="
+                        group
                         border-b border-gray-100 dark:border-gray-800
                         hover:bg-gray-50 dark:hover:bg-gray-800/50
                         transition
                         cursor-pointer
+                        focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-red-500
                       "
                       onClick={() => handleViewHistory(payment.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleViewHistory(payment.id);
+                      }}
                     >
 
                       <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">
@@ -287,8 +293,8 @@ function PaymentHistory() {
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
                           dir.type === "Sent"
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : 'bg-green-50 text-green-700 border-green-200'
+                            ? 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-700/40 dark:text-gray-300 dark:border-gray-600'
+                            : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30'
                         }`}>
                           {dir.type}
                         </span>
@@ -328,7 +334,7 @@ function PaymentHistory() {
                         {formatDate(payment.createdAt)}
                         <br />
                         <button
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium mt-1"
+                          className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium mt-1 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 rounded"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewHistory(payment.id);
@@ -338,6 +344,11 @@ function PaymentHistory() {
                         </button>
                       </td>
 
+                      <td className="px-6 py-4 text-gray-300 dark:text-gray-700 group-hover:text-red-400 dark:group-hover:text-red-500 transition">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </td>
 
                     </tr>
                   );
@@ -370,7 +381,8 @@ function PaymentHistory() {
              </h3>
              <button
                onClick={() => setSelectedPaymentId(null)}
-               className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white text-2xl font-light"
+               aria-label="Close payment history"
+               className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white text-2xl font-light cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 rounded"
              >
                ✕
              </button>
@@ -433,7 +445,7 @@ function PaymentHistory() {
            <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end">
              <button
                onClick={() => setSelectedPaymentId(null)}
-               className="px-4 py-2 text-gray-700 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition"
+               className="px-4 py-2 text-gray-700 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium text-sm transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
              >
                Close
              </button>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import Toast from "../components/Toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
@@ -16,6 +18,8 @@ function PaymentsPage() {
   const [senderCurrency, setSenderCurrency] = useState("USD"); // Sender's account currency
   const [receiverInfo, setReceiverInfo] = useState(null); // { name, currency }
   const [receiverStatus, setReceiverStatus] = useState("idle"); // idle | loading | found | not_found
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
   const debounceRef = useRef(null);
 
   // Fetch sender's account details to get currency
@@ -63,6 +67,7 @@ function PaymentsPage() {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       await axios.get(`${API_BASE}/accounts/${payment.destinationAccount}`);
 
@@ -81,19 +86,37 @@ function PaymentsPage() {
       });
     } catch (error) {
       if (error.response?.status === 404) {
-        alert("Destination account does not exist");
+        setToast({ message: "Destination account does not exist.", type: "error" });
       } else if (!error.response) {
-        alert("Cannot connect to server. Is the backend running?");
+        setToast({ message: "Cannot connect to server. Is the backend running?", type: "error" });
       } else {
-        alert("Error " + error.response.status + ": " + (error.response.data?.message || error.message));
+        setToast({ message: "Error " + error.response.status + ": " + (error.response.data?.message || error.message), type: "error" });
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const sourceAccount = localStorage.getItem("account") || "-";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+      <Navbar />
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
+
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
+
+        <div className="w-full max-w-md mb-4">
+          <button
+            onClick={() => navigate("/home")}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 rounded"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+        </div>
 
       {/* Card */}
       <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-xl overflow-hidden">
@@ -193,15 +216,18 @@ function PaymentsPage() {
            {/* Pay button */}
            <button
              onClick={handleSubmit}
-             disabled={!payment.amount || !payment.destinationAccount}
-             className="w-full mt-2 bg-red-600 text-white py-3.5 rounded-xl font-semibold text-sm tracking-wide hover:bg-red-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-red-200"
+             disabled={!payment.amount || !payment.destinationAccount || submitting}
+             className="w-full mt-2 bg-red-600 text-white py-3.5 rounded-xl font-semibold text-sm tracking-wide hover:bg-red-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-red-200 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
            >
-             {payment.amount && receiverInfo
+             {submitting
+               ? "Sending\u2026"
+               : payment.amount && receiverInfo
                ? `Pay ${senderCurrency} ${payment.amount} to ${receiverInfo.name.split(" ")[0]}`
                : "Send Payment"}
            </button>
 
         </div>
+      </div>
       </div>
     </div>
   );

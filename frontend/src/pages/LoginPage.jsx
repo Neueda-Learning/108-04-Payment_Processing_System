@@ -1,11 +1,15 @@
 ﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import Toast from "../components/Toast";
 
 function LoginPage() {
 
   const [account, setAccount] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [toast, setToast] = useState(null); // { message, type }
 
   const [newAccount, setNewAccount] = useState({
     accountNumber: "",
@@ -27,10 +31,11 @@ function LoginPage() {
  const handleLogin = async () => {
 
   if (!account) {
-    alert("Please enter account number");
+    setToast({ message: "Please enter your account number", type: "error" });
     return;
   }
 
+  setLoggingIn(true);
   try {
 
     await axios.get(`${import.meta.env.VITE_API_URL}/accounts/${account}`);
@@ -41,11 +46,15 @@ function LoginPage() {
   } catch (error) {
 
     if (error.response && error.response.status === 404) {
-      alert("Account not found");
+      setToast({ message: "Account not found. Check the account number and try again.", type: "error" });
+    } else if (!error.response) {
+      setToast({ message: "Cannot connect to server. Is the backend running?", type: "error" });
     } else {
-      alert("Something went wrong");
+      setToast({ message: "Something went wrong. Please try again.", type: "error" });
     }
 
+  } finally {
+    setLoggingIn(false);
   }
 
 };
@@ -53,25 +62,24 @@ function LoginPage() {
 
   const handleCreateAccount = async () => {
 
+    setCreating(true);
     try {
-//console.log(newAccount);
 
-      const response = await axios.post(
+      await axios.post(
         `${import.meta.env.VITE_API_URL}/accounts/`,
         newAccount
       );
 
-      //console.log("Account created:", response.data);
-
-      alert("Account created successfully");
-
+      setToast({ message: "Account created successfully. You can now log in.", type: "success" });
       setShowCreate(false);
 
     } catch (error) {
 
       console.error(error);
-      alert("Account creation failed");
+      setToast({ message: "Account creation failed. Please check the details and try again.", type: "error" });
 
+    } finally {
+      setCreating(false);
     }
 
   };
@@ -79,6 +87,8 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center px-4 bg-gray-50 dark:bg-gray-950">
+
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
 
       {/* Background image */}
       <div
@@ -108,6 +118,7 @@ function LoginPage() {
           <input
             type="text"
             placeholder="Enter account number"
+            aria-label="Account number"
             value={account}
             onChange={(e) => setAccount(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleLogin()}
@@ -116,9 +127,10 @@ function LoginPage() {
 
           <button
             onClick={handleLogin}
-            className="w-full mt-3 bg-red-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-red-700 active:scale-95 transition shadow-sm shadow-red-200"
+            disabled={loggingIn}
+            className="w-full mt-3 bg-red-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-red-700 active:scale-95 transition shadow-sm shadow-red-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
           >
-            Login
+            {loggingIn ? "Logging in\u2026" : "Login"}
           </button>
 
           <div className="flex items-center gap-3 my-4">
@@ -129,7 +141,7 @@ function LoginPage() {
 
           <button
             onClick={() => setShowCreate(true)}
-            className="w-full border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition"
+            className="w-full border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95 transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
           >
             Create New Account
           </button>
@@ -147,7 +159,7 @@ function LoginPage() {
 
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Create Account</h2>
-              <button onClick={() => setShowCreate(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm transition">✕</button>
+              <button onClick={() => setShowCreate(false)} aria-label="Close" className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 text-sm transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500">✕</button>
             </div>
 
             <div className="space-y-3">
@@ -185,13 +197,14 @@ function LoginPage() {
 
             <button
               onClick={handleCreateAccount}
-              className="w-full mt-4 bg-red-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-red-700 active:scale-95 transition shadow-sm shadow-red-200"
+              disabled={creating}
+              className="w-full mt-4 bg-red-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-red-700 active:scale-95 transition shadow-sm shadow-red-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
             >
-              Create Account
+              {creating ? "Creating\u2026" : "Create Account"}
             </button>
             <button
               onClick={() => setShowCreate(false)}
-              className="w-full mt-2 py-3 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
+              className="w-full mt-2 py-3 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 rounded"
             >
               Cancel
             </button>
