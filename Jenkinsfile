@@ -74,12 +74,25 @@ pipeline {
 
     post {
 
-        failure {
-            sh 'docker-compose logs --tail=100 || true'
+    failure {
+
+        withCredentials([
+            string(
+                credentialsId: 'GEMINI_API_KEY',
+                variable: 'GEMINI_API_KEY'
+            )
+        ]) {
+
+            sh '''
+            docker-compose logs --tail=100 || true
+            '''
+
         }
 
-        always {
-            echo 'Pipeline completed'
-        }
     }
+
+    always {
+        echo 'Pipeline completed'
+    }
+}
 }
