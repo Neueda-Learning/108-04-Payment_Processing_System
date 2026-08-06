@@ -46,7 +46,7 @@ function PaymentProgressPage() {
           }
 
           setPaymentStatus(status);
-          setSocketMessage(`Payment ${status.toLowerCase()}.`);
+          setSocketMessage(event.notes || `Payment ${status.toLowerCase()}.`);
 
           if (status === "COMPLETED") {
             terminalRef.current = true;
@@ -205,11 +205,17 @@ function PaymentProgressPage() {
         {/* Payment details */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-6">
           <h2 className="text-xs font-bold uppercase tracking-widest text-red-600 dark:text-red-400 mb-5">Payment Details</h2>
-          <div className="grid grid-cols-3 gap-6 pb-6 border-b border-gray-100 dark:border-gray-800">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pb-6 border-b border-gray-100 dark:border-gray-800">
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
               <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {paymentRequest?.currency || ""} {paymentRequest?.amount || "0"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Type</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {paymentRequest?.paymentType === "SCHEDULED" ? "Scheduled (1 minute)" : "Immediate"}
               </p>
             </div>
             <div>

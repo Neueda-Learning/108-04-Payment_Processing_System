@@ -46,6 +46,9 @@ import java.util.stream.Collectors;
 @Service
 public class PaymentServiceImplemenation implements PaymentService {
 
+    private static final BigDecimal ONE_MINUTE_ACCOUNT_LIMIT_INR = new BigDecimal("100000.00");
+    private static final String LIMIT_BASE_CURRENCY = "INR";
+
     private final PaymentRepository paymentRepository;
     private final PaymentHistoryRepository historyRepository;
     private final AccountRepository accountRepository;
@@ -105,6 +108,17 @@ public class PaymentServiceImplemenation implements PaymentService {
                 saved.getId(), null, PaymentStatus.CREATED.name(), LocalDateTime.now(), "Payment created"));
         notifyPaymentUpdate(saved, h1);
 
+        long scheduleDelayMs = getScheduleDelayMillis(saved);
+        if (scheduleDelayMs > 0) {
+            String scheduleNote = "Scheduled payment queued. Processing starts in "
+                    + (scheduleDelayMs / 1000) + " seconds.";
+            PaymentHistory sh = historyRepository.save(new PaymentHistory(
+                    saved.getId(), PaymentStatus.CREATED.name(), PaymentStatus.CREATED.name(),
+                    LocalDateTime.now(), scheduleNote));
+            notifyPaymentUpdate(saved, sh);
+            sleep(scheduleDelayMs);
+        }
+
         // --- Validate immediately (no delay) using original values ---
         String validationError = null;
         try {
@@ -145,6 +159,12 @@ public class PaymentServiceImplemenation implements PaymentService {
 
         // --- STEP 3: SENT — deduct from source, credit to destination ---
         sleep(2000);
+
+        Payment windowLimitFailure = failIfPerMinuteWindowExceeded(saved);
+        if (windowLimitFailure != null) {
+            return windowLimitFailure;
+        }
+
         if (accountRepository != null) {
             Optional<Account> srcOpt = accountRepository.findByAccountNumber(saved.getSourceAccount());
             if (srcOpt.isPresent() && srcOpt.get().getBalance().compareTo(saved.getAmount()) < 0) {
@@ -623,5 +643,125 @@ public class PaymentServiceImplemenation implements PaymentService {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private Payment failIfPerMinuteWindowExceeded(Payment payment) {
+        if (accountRepository == null) {
+            return null;
+        }
+
+        Optional<Account> sourceAccount = accountRepository.findByAccountNumber(payment.getSourceAccount());
+        Optional<Account> destinationAccount = accountRepository.findByAccountNumber(payment.getDestinationAccount());
+
+        if (sourceAccount.isPresent()) {
+            String sourceCurrency = normalizeCurrency(sourceAccount.get().getAccountCurrencyType(), payment.getCurrency());
+            BigDecimal sourceAccountLimit = getAccountWindowLimit(sourceCurrency);
+            BigDecimal attemptedSourceAmount = convertAmount(payment.getAmount(), payment.getCurrency(), sourceCurrency);
+            BigDecimal sourceWindowTotal = getAccountWindowTotal(payment, sourceAccount.get().getAccountNumber(), sourceCurrency);
+            if (sourceWindowTotal.add(attemptedSourceAmount).compareTo(sourceAccountLimit) > 0) {
+                String message = "Per-minute transfer limit exceeded for source account. Limit is "
+                        + sourceAccountLimit + " " + sourceCurrency
+                        + " (equivalent to " + ONE_MINUTE_ACCOUNT_LIMIT_INR + " " + LIMIT_BASE_CURRENCY + ") in 1 minute.";
+                return markPaymentFailed(payment, "RATE_LIMIT_EXCEEDED", message, PaymentStatus.VALIDATED.name());
+            }
+        }
+
+        if (destinationAccount.isPresent()) {
+            String destinationCurrency = normalizeCurrency(destinationAccount.get().getAccountCurrencyType(), payment.getCurrency());
+            BigDecimal destinationAccountLimit = getAccountWindowLimit(destinationCurrency);
+            BigDecimal attemptedDestinationAmount = convertAmount(payment.getAmount(), payment.getCurrency(), destinationCurrency);
+            BigDecimal destinationWindowTotal = getAccountWindowTotal(payment, destinationAccount.get().getAccountNumber(), destinationCurrency);
+            if (destinationWindowTotal.add(attemptedDestinationAmount).compareTo(destinationAccountLimit) > 0) {
+                String message = "Per-minute transfer limit exceeded for destination account. Limit is "
+                        + destinationAccountLimit + " " + destinationCurrency
+                        + " (equivalent to " + ONE_MINUTE_ACCOUNT_LIMIT_INR + " " + LIMIT_BASE_CURRENCY + ") in 1 minute.";
+                return markPaymentFailed(payment, "RATE_LIMIT_EXCEEDED", message, PaymentStatus.VALIDATED.name());
+            }
+        }
+
+        return null;
+    }
+
+    private BigDecimal getAccountWindowTotal(Payment currentPayment, String accountNumber, String accountCurrency) {
+        List<Payment> recentPayments = paymentRepository.findRecentByAccountAndWindow(
+                accountNumber, LocalDateTime.now().minusMinutes(1));
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (Payment recent : recentPayments) {
+            if (Objects.equals(recent.getId(), currentPayment.getId())) {
+                continue;
+            }
+            BigDecimal recentAmount = convertAmount(recent.getAmount(), recent.getCurrency(), accountCurrency);
+            total = total.add(recentAmount);
+        }
+        return total;
+    }
+
+    private BigDecimal convertAmount(BigDecimal amount, String fromCurrency, String toCurrency) {
+        if (amount == null) {
+            return BigDecimal.ZERO;
+        }
+        String normalizedFrom = normalizeCurrency(fromCurrency, null);
+        String normalizedTo = normalizeCurrency(toCurrency, null);
+        if (normalizedFrom == null || normalizedTo == null || normalizedFrom.equalsIgnoreCase(normalizedTo)) {
+            return amount;
+        }
+
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            String url = "https://api.frankfurter.dev/v1/latest?from=" + normalizedFrom + "&to=" + normalizedTo;
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> response = restTemplate.getForObject(url, java.util.Map.class);
+            if (response != null && response.containsKey("rates")) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Number> rates = (java.util.Map<String, Number>) response.get("rates");
+                Number rate = rates.get(normalizedTo.toUpperCase());
+                if (rate != null) {
+                    return amount.multiply(new BigDecimal(rate.toString())).setScale(2, java.math.RoundingMode.HALF_UP);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("[FX] Conversion failed for limit check, using 1:1: " + e.getMessage());
+        }
+
+        return amount;
+    }
+
+    private BigDecimal getAccountWindowLimit(String accountCurrency) {
+        String normalizedAccountCurrency = normalizeCurrency(accountCurrency, LIMIT_BASE_CURRENCY);
+        return convertAmount(ONE_MINUTE_ACCOUNT_LIMIT_INR, LIMIT_BASE_CURRENCY, normalizedAccountCurrency);
+    }
+
+    private String normalizeCurrency(String currency, String fallback) {
+        if (currency == null || currency.isBlank()) {
+            return fallback;
+        }
+        return currency.trim().toUpperCase();
+    }
+
+    private Payment markPaymentFailed(Payment payment, String errorCode, String reason, String fromStatus) {
+        paymentRepository.updatePaymentWithError(payment.getId(), errorCode, reason);
+        payment.setStatus(PaymentStatus.FAILED.name());
+        payment.setErrorCode(errorCode);
+        payment.setDescription(reason);
+        PaymentHistory history = historyRepository.save(new PaymentHistory(
+                payment.getId(), fromStatus, PaymentStatus.FAILED.name(), LocalDateTime.now(), reason));
+        notifyPaymentUpdate(payment, history);
+        return payment;
+    }
+
+    private long getScheduleDelayMillis(Payment payment) {
+        String paymentType = payment.getPaymentType();
+        Integer requestedDelaySeconds = payment.getScheduledDelaySeconds();
+
+        boolean isScheduled = paymentType != null
+                && "SCHEDULED".equalsIgnoreCase(paymentType.trim());
+        if (!isScheduled && (requestedDelaySeconds == null || requestedDelaySeconds <= 0)) {
+            return 0L;
+        }
+
+        int delaySeconds = requestedDelaySeconds != null ? requestedDelaySeconds : 60;
+        delaySeconds = Math.max(0, Math.min(delaySeconds, 300));
+        return delaySeconds * 1000L;
     }
 }

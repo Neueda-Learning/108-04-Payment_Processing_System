@@ -1,5 +1,6 @@
 package com.neueda.repository;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import com.neueda.model.Payment;
 
@@ -13,6 +14,8 @@ public interface PaymentRepository {
         Optional<Payment> findByIdempotencyKey(String key);
 
         List<Payment> findAllByStatus(String status);
+
+        List<Payment> findRecentByAccountAndWindow(String accountNumber, LocalDateTime windowStart);
 
         void updateStatus(Long id, String status);
         
