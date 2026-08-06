@@ -41,8 +41,8 @@ function PaymentHistory() {
         setLoading(true);
 
         const [accountRes, paymentsRes] = await Promise.all([
-          axios.get(`http://localhost:8080/accounts/${accountNumber}`),
-          axios.get("http://localhost:8080/payments")
+          axios.get(`${import.meta.env.VITE_API_URL}/accounts/${accountNumber}`),
+          axios.get(`${import.meta.env.VITE_API_URL}/payments`)
         ]);
 
         if (cancelled) return;
@@ -102,7 +102,7 @@ function PaymentHistory() {
     setSelectedPaymentId(paymentId);
     setHistoryLoading(true);
     try {
-      const response = await axios.get(`http://localhost:8080/payments/${paymentId}/history`);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/payments/${paymentId}/history`);
       setPaymentHistory(response.data || []);
     } catch (err) {
       console.error("Failed to fetch payment history:", err);
