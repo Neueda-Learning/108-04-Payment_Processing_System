@@ -14,6 +14,7 @@ services:
       MYSQL_ROOT_PASSWORD: root_password
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./server/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uapp_user", "-papp_password"]
       interval: 10s
@@ -36,7 +37,7 @@ services:
       SPRING_DATASOURCE_USERNAME: app_user
       SPRING_DATASOURCE_PASSWORD: app_password
     ports:
-      - "8080:8080"    # Also exposed directly so you can call the API from outside if needed
+      - "8082:8080"    # 8080 may be taken by Jenkins; nginx proxies internally on :8080
 
   # ── Python chatbot ─────────────────────────────────────────────────────────
   chatbot:
@@ -46,7 +47,7 @@ services:
     container_name: flashpay-chatbot
     restart: always
     ports:
-      - "8000:8000"
+      - "8083:8000"
 
   # ── React frontend (nginx) ─────────────────────────────────────────────────
   frontend:
@@ -59,7 +60,7 @@ services:
       - spring-app
       - chatbot
     ports:
-      - "80:80"        # Access the app at http://<vm-ip>/
+      - "8081:3000"        # Access the app at http://<vm-ip>:8081/
 
 volumes:
   mysql-data:

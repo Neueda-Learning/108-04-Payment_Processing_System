@@ -12,7 +12,7 @@ function Navbar() {
 
   useEffect(() => {
     if (!accountNumber) return;
-    axios.get(`http://localhost:8080/accounts/${accountNumber}`)
+    axios.get(`${import.meta.env.VITE_API_URL}/accounts/${accountNumber}`)
       .then(res => setAccountInfo(res.data))
       .catch(() => {});
   }, [accountNumber]);
