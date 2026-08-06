@@ -101,13 +101,8 @@ class AccountServiceImplementationTest {
         }
 
         @Override
-        public int debitBalance(String accountNumber, BigDecimal amount) {
-            throw new UnsupportedOperationException("Not used by AccountServiceImplementationTest");
-        }
-
-        @Override
-        public int creditBalance(String accountNumber, BigDecimal amount) {
-            throw new UnsupportedOperationException("Not used by AccountServiceImplementationTest");
+        public void updateBalance(String accountNumber, java.math.BigDecimal newBalance) {
+            // no-op for tests
         }
     }
 }

@@ -14,8 +14,6 @@ public interface AccountRepository {
 
     List<Account> findAll();
 
-    int debitBalance(String accountNumber, BigDecimal amount);
-
-    int creditBalance(String accountNumber, BigDecimal amount);
+    void updateBalance(String accountNumber, java.math.BigDecimal newBalance);
     
 }

@@ -32,6 +32,7 @@ public class PaymentServiceImplemenation implements PaymentService {
     private final PaymentHistoryRepository historyRepository;
     private final AccountRepository accountRepository;
     private final PaymentNotificationService notificationService;
+    private final AccountRepository accountRepository;
 
     public PaymentServiceImplemenation(PaymentRepository paymentRepository,
                                        PaymentHistoryRepository historyRepository) {
@@ -41,12 +42,13 @@ public class PaymentServiceImplemenation implements PaymentService {
     @Autowired
     public PaymentServiceImplemenation(PaymentRepository paymentRepository,
                                        PaymentHistoryRepository historyRepository,
-                                       AccountRepository accountRepository,
-                                       PaymentNotificationService notificationService) {
+                                       PaymentNotificationService notificationService,
+                                       AccountRepository accountRepository) {
         this.paymentRepository = paymentRepository;
         this.historyRepository = historyRepository;
         this.accountRepository = accountRepository;
         this.notificationService = notificationService;
+        this.accountRepository = accountRepository;
     }
 
     /**
@@ -61,22 +63,20 @@ public class PaymentServiceImplemenation implements PaymentService {
     @Override
     public Payment createPayment(Payment payment) {
 
-        // 1. Run field-level validation
-        PaymentValidator.validateAmount(payment.getAmount());
-        PaymentValidator.validateAccounts(payment.getSourceAccount(), payment.getDestinationAccount());
-        PaymentValidator.validateCurrency(payment.getCurrency());
-        PaymentValidator.validateIdempotencyKey(payment.getIdempotencyKey());
-
-        // 2. Idempotency check — reject if the key is already known
+        // Idempotency check before saving anything
         Optional<Payment> existing = paymentRepository.findByIdempotencyKey(payment.getIdempotencyKey());
         if (existing.isPresent()) {
             throw new DuplicatePaymentException(payment.getIdempotencyKey(), existing.get().getId());
         }
 
-        // 3. Force initial status to CREATED (ignore whatever the caller supplied)
-        payment.setStatus(PaymentStatus.CREATED.name());
+        // Keep original amount for validation; cap stored value to DB column limit
+        BigDecimal originalAmount = payment.getAmount();
+        if (originalAmount != null && originalAmount.compareTo(new BigDecimal("999999.99")) > 0) {
+            payment.setAmount(new BigDecimal("999999.99"));
+        }
 
-        // 4. Persist and record the creation history entry
+        // --- STEP 1: Always save as CREATED first ---
+        payment.setStatus(PaymentStatus.CREATED.name());
         final Payment saved;
         try {
             saved = paymentRepository.save(payment);
@@ -85,14 +85,126 @@ public class PaymentServiceImplemenation implements PaymentService {
                     .orElseThrow(() -> ex);
             throw new DuplicatePaymentException(payment.getIdempotencyKey(), alreadySaved.getId());
         }
-        PaymentHistory history = historyRepository.save(new PaymentHistory(
-                saved.getId(),
-                null,               // no previous status
-                PaymentStatus.CREATED.name(),
-                LocalDateTime.now(),
-                "Payment created"
-        ));
-        notifyPaymentUpdate(saved, history);
+        PaymentHistory h1 = historyRepository.save(new PaymentHistory(
+                saved.getId(), null, PaymentStatus.CREATED.name(), LocalDateTime.now(), "Payment created"));
+        notifyPaymentUpdate(saved, h1);
+
+        // --- Validate immediately (no delay) using original values ---
+        String validationError = null;
+        try {
+            PaymentValidator.validateAmount(originalAmount);
+            PaymentValidator.validateCurrency(saved.getCurrency());
+            PaymentValidator.validateIdempotencyKey(saved.getIdempotencyKey());
+            if (saved.getSourceAccount() != null &&
+                    saved.getSourceAccount().equalsIgnoreCase(saved.getDestinationAccount())) {
+                validationError = "Source and destination accounts cannot be the same";
+            } else {
+                PaymentValidator.validateAccounts(saved.getSourceAccount(), saved.getDestinationAccount());
+            }
+        } catch (com.neueda.exception.ValidationException e) {
+            validationError = e.getMessage();
+        }
+
+        // If validation failed → CREATED → FAILED (skip VALIDATED)
+        if (validationError != null) {
+            paymentRepository.updatePaymentWithError(saved.getId(), "VALIDATION_FAILED", validationError);
+            saved.setStatus(PaymentStatus.FAILED.name());
+            saved.setErrorCode("VALIDATION_FAILED");
+            saved.setDescription(validationError);
+            PaymentHistory fh = historyRepository.save(new PaymentHistory(
+                    saved.getId(), PaymentStatus.CREATED.name(), PaymentStatus.FAILED.name(),
+                    LocalDateTime.now(), validationError));
+            notifyPaymentUpdate(saved, fh);
+            return saved;
+        }
+
+        // --- STEP 2: VALIDATED ---
+        sleep(1500);
+        paymentRepository.updateStatus(saved.getId(), PaymentStatus.VALIDATED.name());
+        saved.setStatus(PaymentStatus.VALIDATED.name());
+        PaymentHistory h2 = historyRepository.save(new PaymentHistory(
+                saved.getId(), PaymentStatus.CREATED.name(), PaymentStatus.VALIDATED.name(),
+                LocalDateTime.now(), "Payment passed all validation checks"));
+        notifyPaymentUpdate(saved, h2);
+
+        // --- STEP 3: SENT — deduct from source, credit to destination ---
+        sleep(2000);
+        if (accountRepository != null) {
+            Optional<Account> srcOpt = accountRepository.findByAccountNumber(saved.getSourceAccount());
+            if (srcOpt.isPresent() && srcOpt.get().getBalance().compareTo(saved.getAmount()) < 0) {
+                String reason = "Insufficient funds: available " + srcOpt.get().getBalance()
+                        + " " + saved.getCurrency() + ", required " + originalAmount;
+                sleep(1000);
+                paymentRepository.updatePaymentWithError(saved.getId(), "INSUFFICIENT_FUNDS", reason);
+                saved.setStatus(PaymentStatus.FAILED.name());
+                saved.setErrorCode("INSUFFICIENT_FUNDS");
+                saved.setDescription(reason);
+                PaymentHistory fh = historyRepository.save(new PaymentHistory(
+                        saved.getId(), PaymentStatus.VALIDATED.name(), PaymentStatus.FAILED.name(),
+                        LocalDateTime.now(), reason));
+                notifyPaymentUpdate(saved, fh);
+                return saved;
+            }
+
+            // Deduct from source
+
+            if (srcOpt.isPresent()) {
+                
+                java.math.BigDecimal newSrcBalance = srcOpt.get().getBalance().subtract(saved.getAmount());
+                accountRepository.updateBalance(saved.getSourceAccount(), newSrcBalance);
+            }
+
+            // Credit to destination with currency conversion
+            Optional<Account> destOpt = accountRepository.findByAccountNumber(saved.getDestinationAccount());
+            if (destOpt.isPresent()) {
+                String srcCurrency = srcOpt.isPresent() ? srcOpt.get().getAccountCurrencyType() : saved.getCurrency();
+                String destCurrency = destOpt.get().getAccountCurrencyType();
+                java.math.BigDecimal amount = saved.getAmount();
+                java.math.BigDecimal convertedAmount = amount;
+
+                if (srcCurrency != null && destCurrency != null && !srcCurrency.equalsIgnoreCase(destCurrency)) {
+                    try {
+                        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+                        String url = "https://api.frankfurter.dev/v1/latest?from=" + srcCurrency + "&to=" + destCurrency;
+                        System.out.println("[FX] Fetching rate: " + url);
+                        @SuppressWarnings("unchecked")
+                        java.util.Map<String, Object> response = restTemplate.getForObject(url, java.util.Map.class);
+                        if (response != null && response.containsKey("rates")) {
+                            @SuppressWarnings("unchecked")
+                            java.util.Map<String, Number> rates = (java.util.Map<String, Number>) response.get("rates");
+                            Number rate = rates.get(destCurrency.toUpperCase());
+                            if (rate != null) {
+                                convertedAmount = amount.multiply(new java.math.BigDecimal(rate.toString()))
+                                        .setScale(2, java.math.RoundingMode.HALF_UP);
+                                System.out.println("[FX] Rate " + srcCurrency + "->" + destCurrency + " = " + rate + " | " + amount + " -> " + convertedAmount);
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.out.println("[FX] Exchange rate fetch failed, using 1:1: " + e.getMessage());
+                    }
+                } else {
+                    System.out.println("[FX] Same currency (" + srcCurrency + "), no conversion needed.");
+                }
+
+                java.math.BigDecimal newDestBalance = destOpt.get().getBalance().add(convertedAmount);
+                accountRepository.updateBalance(saved.getDestinationAccount(), newDestBalance);
+            }
+        }
+        paymentRepository.updateStatus(saved.getId(), PaymentStatus.SENT.name());
+        saved.setStatus(PaymentStatus.SENT.name());
+        PaymentHistory h3 = historyRepository.save(new PaymentHistory(
+                saved.getId(), PaymentStatus.VALIDATED.name(), PaymentStatus.SENT.name(),
+                LocalDateTime.now(), "Amount deducted from source and sent to destination"));
+        notifyPaymentUpdate(saved, h3);
+
+        // --- STEP 4: COMPLETED ---
+        sleep(1500);
+        paymentRepository.updateStatus(saved.getId(), PaymentStatus.COMPLETED.name());
+        saved.setStatus(PaymentStatus.COMPLETED.name());
+        PaymentHistory h4 = historyRepository.save(new PaymentHistory(
+                saved.getId(), PaymentStatus.SENT.name(), PaymentStatus.COMPLETED.name(),
+                LocalDateTime.now(), "Payment completed and confirmed by destination"));
+        notifyPaymentUpdate(saved, h4);
 
         return saved;
     }
@@ -306,6 +418,14 @@ public class PaymentServiceImplemenation implements PaymentService {
     private void notifyPaymentUpdate(Payment payment, PaymentHistory history) {
         if (notificationService != null) {
             notificationService.sendPaymentUpdate(payment, history);
+        }
+    }
+
+    private void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 }
