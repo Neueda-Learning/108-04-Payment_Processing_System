@@ -48,7 +48,8 @@ function HomePage() {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            message: question
+            message: question,
+            account_number: localStorage.getItem("account") || null
           })
         }
       );
