@@ -1,6 +1,8 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 function PaymentsPage() {
   const navigate = useNavigate();
@@ -11,9 +13,25 @@ function PaymentsPage() {
     summary: ""
   });
 
+  const [senderCurrency, setSenderCurrency] = useState("USD"); // Sender's account currency
   const [receiverInfo, setReceiverInfo] = useState(null); // { name, currency }
   const [receiverStatus, setReceiverStatus] = useState("idle"); // idle | loading | found | not_found
   const debounceRef = useRef(null);
+
+  // Fetch sender's account details to get currency
+  useEffect(() => {
+    const sourceAccount = localStorage.getItem("account");
+    if (sourceAccount) {
+      axios.get(`${API_BASE}/accounts/${sourceAccount}`)
+        .then(res => {
+          setSenderCurrency(res.data.accountCurrencyType || "USD");
+        })
+        .catch(err => {
+          console.error("Failed to fetch sender account:", err);
+          setSenderCurrency("USD");
+        });
+    }
+  }, []);
 
   // Look up receiver name when account number changes
   useEffect(() => {
@@ -28,7 +46,7 @@ function PaymentsPage() {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await axios.get(`http://localhost:8080/accounts/${acc}`);
+        const res = await axios.get(`${API_BASE}/accounts/${acc}`);
         setReceiverInfo({ name: res.data.accountHolderName, currency: res.data.accountCurrencyType });
         setReceiverStatus("found");
       } catch {
@@ -46,10 +64,7 @@ function PaymentsPage() {
 
   const handleSubmit = async () => {
     try {
-      const accountResponse = await axios.get(
-        `http://localhost:8080/accounts/${payment.destinationAccount}`
-      );
-      const destinationAccount = accountResponse.data;
+      await axios.get(`${API_BASE}/accounts/${payment.destinationAccount}`);
 
       navigate("/payment-progress", {
         state: {
@@ -60,7 +75,7 @@ function PaymentsPage() {
             destinationAccount: payment.destinationAccount,
             idempotencyKey: `idem-${Date.now()}`,
             description: payment.summary,
-            currency: destinationAccount.accountCurrencyType,
+            currency: senderCurrency,
           },
         },
       });
@@ -68,14 +83,14 @@ function PaymentsPage() {
       if (error.response?.status === 404) {
         alert("Destination account does not exist");
       } else if (!error.response) {
-        alert("Cannot connect to server. Is the backend running on port 8080?");
+        alert("Cannot connect to server. Is the backend running?");
       } else {
         alert("Error " + error.response.status + ": " + (error.response.data?.message || error.message));
       }
     }
   };
 
-  const sourceAccount = localStorage.getItem("account") || "—";
+  const sourceAccount = localStorage.getItem("account") || "-";
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col items-center justify-center px-4 py-10">
@@ -123,7 +138,7 @@ function PaymentsPage() {
               </div>
             </div>
 
-            {/* Receiver card — shown when found */}
+            {/* Receiver card - shown when found */}
             {receiverStatus === "found" && receiverInfo && (
               <div className="mt-2 flex items-center gap-3 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 px-4 py-3">
                 <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-green-600 text-white text-sm font-bold">
@@ -131,7 +146,7 @@ function PaymentsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{receiverInfo.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Account verified · {receiverInfo.currency}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Account verified - {receiverInfo.currency}</p>
                 </div>
                 <svg className="ml-auto h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -149,7 +164,7 @@ function PaymentsPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Amount</label>
             <div className="relative mt-2">
               <span className="absolute left-4 top-3 text-gray-400 dark:text-gray-500 text-sm font-semibold">
-                {receiverInfo?.currency || "₹"}
+                {senderCurrency || "USD"}
               </span>
               <input
                 type="number"
@@ -175,16 +190,16 @@ function PaymentsPage() {
             />
           </div>
 
-          {/* Pay button */}
-          <button
-            onClick={handleSubmit}
-            disabled={!payment.amount || !payment.destinationAccount}
-            className="w-full mt-2 bg-red-600 text-white py-3.5 rounded-xl font-semibold text-sm tracking-wide hover:bg-red-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-red-200"
-          >
-            {payment.amount && receiverInfo
-              ? `Pay ${receiverInfo.currency} ${payment.amount} to ${receiverInfo.name.split(" ")[0]}`
-              : "Send Payment"}
-          </button>
+           {/* Pay button */}
+           <button
+             onClick={handleSubmit}
+             disabled={!payment.amount || !payment.destinationAccount}
+             className="w-full mt-2 bg-red-600 text-white py-3.5 rounded-xl font-semibold text-sm tracking-wide hover:bg-red-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-red-200"
+           >
+             {payment.amount && receiverInfo
+               ? `Pay ${senderCurrency} ${payment.amount} to ${receiverInfo.name.split(" ")[0]}`
+               : "Send Payment"}
+           </button>
 
         </div>
       </div>

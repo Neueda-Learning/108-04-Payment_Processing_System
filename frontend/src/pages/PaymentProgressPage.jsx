@@ -29,7 +29,7 @@ function PaymentProgressPage() {
     }
 
     const client = new Client({
-      webSocketFactory: () => new SockJS("http://localhost:8080/ws/payments"),
+      webSocketFactory: () => new SockJS(`${import.meta.env.VITE_WS_URL}/ws/payments`),
       reconnectDelay: 0,
       onConnect: async () => {
         setSocketMessage("Connected. Sending payment...");
@@ -63,7 +63,7 @@ function PaymentProgressPage() {
 
         // Now POST — all events will be caught above
         try {
-          await axios.post("http://localhost:8080/payments", paymentRequest);
+          await axios.post(`${import.meta.env.VITE_API_URL}/payments`, paymentRequest);
         } catch (error) {
           if (!terminalRef.current) {
             terminalRef.current = true;

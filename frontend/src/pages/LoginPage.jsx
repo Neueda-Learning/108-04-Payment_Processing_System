@@ -33,7 +33,7 @@ function LoginPage() {
 
   try {
 
-    await axios.get(`http://localhost:8080/accounts/${account}`);
+    await axios.get(`${import.meta.env.VITE_API_URL}/accounts/${account}`);
 
     localStorage.setItem("account", account);
     navigate("/home");
@@ -57,7 +57,7 @@ function LoginPage() {
 //console.log(newAccount);
 
       const response = await axios.post(
-        "http://localhost:8080/accounts/",
+        `${import.meta.env.VITE_API_URL}/accounts/`,
         newAccount
       );
 
