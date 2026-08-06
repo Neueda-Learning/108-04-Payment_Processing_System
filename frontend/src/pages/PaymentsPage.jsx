@@ -11,9 +11,25 @@ function PaymentsPage() {
     summary: ""
   });
 
+  const [senderCurrency, setSenderCurrency] = useState("USD"); // Sender's account currency
   const [receiverInfo, setReceiverInfo] = useState(null); // { name, currency }
   const [receiverStatus, setReceiverStatus] = useState("idle"); // idle | loading | found | not_found
   const debounceRef = useRef(null);
+
+  // Fetch sender's account details to get currency
+  useEffect(() => {
+    const sourceAccount = localStorage.getItem("account");
+    if (sourceAccount) {
+      axios.get(`http://localhost:8080/accounts/${sourceAccount}`)
+        .then(res => {
+          setSenderCurrency(res.data.accountCurrencyType || "USD");
+        })
+        .catch(err => {
+          console.error("Failed to fetch sender account:", err);
+          setSenderCurrency("USD");
+        });
+    }
+  }, []);
 
   // Look up receiver name when account number changes
   useEffect(() => {
@@ -60,7 +76,7 @@ function PaymentsPage() {
             destinationAccount: payment.destinationAccount,
             idempotencyKey: `idem-${Date.now()}`,
             description: payment.summary,
-            currency: destinationAccount.accountCurrencyType,
+            currency: senderCurrency,
           },
         },
       });
@@ -144,23 +160,23 @@ function PaymentsPage() {
             )}
           </div>
 
-          {/* Amount */}
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Amount</label>
-            <div className="relative mt-2">
-              <span className="absolute left-4 top-3 text-gray-400 text-sm font-semibold">
-                {receiverInfo?.currency || "â‚¹"}
-              </span>
-              <input
-                type="number"
-                name="amount"
-                placeholder="0.00"
-                value={payment.amount}
-                onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
-              />
-            </div>
-          </div>
+           {/* Amount */}
+           <div>
+             <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Amount</label>
+             <div className="relative mt-2">
+               <span className="absolute left-4 top-3 text-gray-400 text-sm font-semibold">
+                 {senderCurrency || "USD"}
+               </span>
+               <input
+                 type="number"
+                 name="amount"
+                 placeholder="0.00"
+                 value={payment.amount}
+                 onChange={handleChange}
+                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+               />
+             </div>
+           </div>
 
           {/* Summary / Note */}
           <div>
@@ -175,16 +191,16 @@ function PaymentsPage() {
             />
           </div>
 
-          {/* Pay button */}
-          <button
-            onClick={handleSubmit}
-            disabled={!payment.amount || !payment.destinationAccount}
-            className="w-full mt-2 bg-red-600 text-white py-3.5 rounded-xl font-semibold text-sm tracking-wide hover:bg-red-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-red-200"
-          >
-            {payment.amount && receiverInfo
-              ? `Pay ${receiverInfo.currency} ${payment.amount} to ${receiverInfo.name.split(" ")[0]}`
-              : "Send Payment"}
-          </button>
+           {/* Pay button */}
+           <button
+             onClick={handleSubmit}
+             disabled={!payment.amount || !payment.destinationAccount}
+             className="w-full mt-2 bg-red-600 text-white py-3.5 rounded-xl font-semibold text-sm tracking-wide hover:bg-red-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-red-200"
+           >
+             {payment.amount && receiverInfo
+               ? `Pay ${senderCurrency} ${payment.amount} to ${receiverInfo.name.split(" ")[0]}`
+               : "Send Payment"}
+           </button>
 
         </div>
       </div>
