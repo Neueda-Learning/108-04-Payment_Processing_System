@@ -108,7 +108,7 @@ function Navbar() {
 
               <div className="border-t border-gray-100 px-4 py-3">
                 <button
-                  onClick={() => { setProfileOpen(false); navigate("/"); }}
+                  onClick={() => { localStorage.removeItem("account"); setProfileOpen(false); navigate("/", { replace: true }); }}
                   className="w-full text-sm text-red-600 font-semibold hover:text-red-700 transition text-left"
                 >
                   Logout →
