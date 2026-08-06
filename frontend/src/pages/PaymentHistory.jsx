@@ -18,7 +18,7 @@ function PaymentHistory() {
     setCurrentAccount(account);
     if (account) {
       // Fetch sender's account details to get currency
-      axios.get(`http://localhost:8080/accounts/${account}`)
+      axios.get(`${import.meta.env.VITE_API_URL}/accounts/${account}`)
         .then(res => {
           setSenderCurrency(res.data.accountCurrencyType || "USD");
         })
@@ -36,7 +36,7 @@ function PaymentHistory() {
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:8080/payments");
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/payments`);
 
       // Filter payments for the current logged-in account
       const account = localStorage.getItem("account");
@@ -94,7 +94,7 @@ function PaymentHistory() {
   const fetchPaymentHistory = async (paymentId) => {
     try {
       setHistoryLoading(true);
-      const response = await axios.get(`http://localhost:8080/payments/${paymentId}/history`);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/payments/${paymentId}/history`);
       setPaymentHistory(response.data || []);
     } catch (err) {
       console.error("Failed to fetch payment history:", err);
