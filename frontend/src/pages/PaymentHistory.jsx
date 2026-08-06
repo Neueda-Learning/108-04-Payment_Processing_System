@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/Navbar";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
 const getStatusBadgeClasses = (status) => {
   const normalized = String(status || "").toUpperCase();
   if (normalized === "COMPLETED") {
@@ -25,6 +27,33 @@ function PaymentHistory() {
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  const getConvertedAmount = async (amount, fromCurrency, toCurrency, rateCache) => {
+    const numericAmount = Number(amount || 0);
+    if (!fromCurrency || !toCurrency || fromCurrency.toUpperCase() === toCurrency.toUpperCase()) {
+      return numericAmount;
+    }
+
+    const key = `${fromCurrency.toUpperCase()}->${toCurrency.toUpperCase()}`;
+    if (rateCache[key] != null) {
+      return numericAmount * rateCache[key];
+    }
+
+    try {
+      const fxRes = await axios.get(
+        `https://api.frankfurter.dev/v1/latest?from=${fromCurrency.toUpperCase()}&to=${toCurrency.toUpperCase()}`
+      );
+      const rate = Number(fxRes?.data?.rates?.[toCurrency.toUpperCase()]);
+      if (Number.isFinite(rate) && rate > 0) {
+        rateCache[key] = rate;
+        return numericAmount * rate;
+      }
+    } catch (err) {
+      console.warn("FX conversion failed, showing original amount:", err);
+    }
+
+    return numericAmount;
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -41,8 +70,8 @@ function PaymentHistory() {
         setLoading(true);
 
         const [accountRes, paymentsRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL}/accounts/${accountNumber}`),
-          axios.get(`${import.meta.env.VITE_API_URL}/payments`)
+          axios.get(`${API_BASE}/accounts/${accountNumber}`),
+          axios.get(`${API_BASE}/payments`)
         ]);
 
         if (cancelled) return;
@@ -53,7 +82,26 @@ function PaymentHistory() {
           .filter((p) => p.sourceAccount === accountNumber || p.destinationAccount === accountNumber)
           .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-        setPayments(mine);
+        const currentAccountCurrency = accountRes.data?.accountCurrencyType || "USD";
+        const rateCache = {};
+        const enriched = await Promise.all(
+          mine.map(async (p) => {
+            const outgoing = p.sourceAccount === accountNumber;
+            const sourceCurrency = p.currency || currentAccountCurrency;
+            const convertedAmount = outgoing
+              ? Number(p.amount || 0)
+              : await getConvertedAmount(p.amount, sourceCurrency, currentAccountCurrency, rateCache);
+
+            return {
+              ...p,
+              displayAmount: Number.isFinite(convertedAmount)
+                ? Number(convertedAmount.toFixed(2))
+                : Number(p.amount || 0)
+            };
+          })
+        );
+
+        setPayments(enriched);
         setError(null);
       } catch (err) {
         if (!cancelled) {
@@ -102,7 +150,7 @@ function PaymentHistory() {
     setSelectedPaymentId(paymentId);
     setHistoryLoading(true);
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/payments/${paymentId}/history`);
+      const response = await axios.get(`${API_BASE}/payments/${paymentId}/history`);
       setPaymentHistory(response.data || []);
     } catch (err) {
       console.error("Failed to fetch payment history:", err);
@@ -295,7 +343,7 @@ function PaymentHistory() {
                       </td>
 
                       <td className={`px-6 py-4 font-semibold ${dir.amountClass}`}>
-                        {senderCurrency} {Number(payment.amount || 0).toFixed(2)}
+                        {senderCurrency} {Number((payment.displayAmount ?? payment.amount) || 0).toFixed(2)}
                       </td>
 
                       <td className="px-6 py-4 text-gray-600 dark:text-gray-400">

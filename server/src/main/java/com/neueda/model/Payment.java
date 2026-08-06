@@ -16,6 +16,8 @@ public class Payment {
     private String currency;
     private String errorCode;
     private String description; // New field for payment description
+    private String paymentType;
+    private Integer scheduledDelaySeconds;
 
     // Empty constructor (required for frameworks)
     public Payment() {}
@@ -136,5 +138,21 @@ public class Payment {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getPaymentType() {
+        return paymentType;
+    }
+
+    public void setPaymentType(String paymentType) {
+        this.paymentType = paymentType;
+    }
+
+    public Integer getScheduledDelaySeconds() {
+        return scheduledDelaySeconds;
+    }
+
+    public void setScheduledDelaySeconds(Integer scheduledDelaySeconds) {
+        this.scheduledDelaySeconds = scheduledDelaySeconds;
     }
 }
