@@ -135,6 +135,11 @@ System.out.println("Executing SQL: " + sql);
         return jdbc.query(sql, getRowMapper(), status);
     }
 
+    public List<Payment> findAllByAccount(String accountNumber) {
+        String sql = "SELECT * FROM payments WHERE source_account = ? OR destination_account = ?";
+        return jdbc.query(sql, getRowMapper(), accountNumber, accountNumber);
+    }
+
     public void updateStatus(Long id, String status) {
         String sql = "UPDATE payments SET status = ?, updated_at = ? WHERE id = ?";
         jdbc.update(sql, status, java.sql.Timestamp.valueOf(LocalDateTime.now()), id);

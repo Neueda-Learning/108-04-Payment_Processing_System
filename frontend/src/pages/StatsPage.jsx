@@ -78,8 +78,8 @@ function TrendBadge({ trend, goodDirection = "up" }) {
   const colorClass = isFlat
     ? "text-gray-500 dark:text-gray-400"
     : isGood
-    ? "text-green-600 dark:text-green-400"
-    : "text-red-500 dark:text-red-400";
+      ? "text-green-600 dark:text-green-400"
+      : "text-red-500 dark:text-red-400";
   return (
     <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${colorClass}`}>
       {!isFlat && (
@@ -117,6 +117,7 @@ function StatsPage() {
     ? { backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: 8, color: "#f3f4f6" }
     : { backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 8, color: "#111827" };
 
+  const account = localStorage.getItem("account") || null;
   const todayStr = new Date().toISOString().slice(0, 10);
   const [range, setRange] = useState(initialDateRange);
   const [summary, setSummary] = useState(null);
@@ -139,10 +140,11 @@ function StatsPage() {
     setLoading(true);
     setError(null);
     const prevRange = previousDateRange(range);
+    const accountParam = account ? { account } : {};
     Promise.all([
-      axios.get(`${API_BASE}/stats/payments`),
-      axios.get(`${API_BASE}/stats/dashboard`, { params: { from: range.from, to: range.to } }),
-      axios.get(`${API_BASE}/stats/dashboard`, { params: { from: prevRange.from, to: prevRange.to } }),
+      axios.get(`${API_BASE}/stats/payments`, { params: { ...accountParam } }),
+      axios.get(`${API_BASE}/stats/dashboard`, { params: { from: range.from, to: range.to, ...accountParam } }),
+      axios.get(`${API_BASE}/stats/dashboard`, { params: { from: prevRange.from, to: prevRange.to, ...accountParam } }),
     ])
       .then(([summaryRes, dashboardRes, prevDashboardRes]) => {
         setSummary(summaryRes.data);
@@ -236,7 +238,9 @@ function StatsPage() {
         {/* Header + date range */}
         <PageHeader
           title="Payment Statistics"
-          subtitle="Analyze your payment performance, transaction activity, success rates, and processed amounts."
+          subtitle={account
+            ? `Your personal payment analytics — Account: ${account}`
+            : "Analyze your payment performance, transaction activity, success rates, and processed amounts."}
           actions={
             <>
               <input
@@ -337,141 +341,141 @@ function StatsPage() {
             ))}
           </div>
         ) : (
-        <div className="max-w-6xl mx-auto mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="max-w-6xl mx-auto mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          <ChartCard title="Status Distribution">
-            {dashboard?.statusDistribution?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie data={dashboard.statusDistribution} dataKey="count" nameKey="status" innerRadius={55} outerRadius={85} paddingAngle={2}>
-                    {dashboard.statusDistribution.map((entry) => (
-                      <Cell key={entry.status} fill={getStatusChartColor(entry.status)} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: axisColor }} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="No payments in this date range yet." />}
-          </ChartCard>
+            <ChartCard title="Status Distribution">
+              {dashboard?.statusDistribution?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie data={dashboard.statusDistribution} dataKey="count" nameKey="status" innerRadius={55} outerRadius={85} paddingAngle={2}>
+                      {dashboard.statusDistribution.map((entry) => (
+                        <Cell key={entry.status} fill={getStatusChartColor(entry.status)} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 12, color: axisColor }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="No payments in this date range yet." />}
+            </ChartCard>
 
-          <ChartCard title="Volume Over Time">
-            {dashboard?.volumeOverTime?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={dashboard.volumeOverTime}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: axisColor }} />
-                  <YAxis tick={{ fontSize: 11, fill: axisColor }} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} name="Payments" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="No volume data in this date range yet." />}
-          </ChartCard>
+            <ChartCard title="Volume Over Time">
+              {dashboard?.volumeOverTime?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <AreaChart data={dashboard.volumeOverTime}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: axisColor }} />
+                    <YAxis tick={{ fontSize: 11, fill: axisColor }} allowDecimals={false} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} name="Payments" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="No volume data in this date range yet." />}
+            </ChartCard>
 
-          <ChartCard title="Failure Reasons">
-            {dashboard?.failureReasons?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={dashboard.failureReasons}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="errorCode" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="count" fill="#ef4444" radius={[4, 4, 0, 0]} name="Occurrences" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="No failed payments in this date range." />}
-          </ChartCard>
+            <ChartCard title="Failure Reasons">
+              {dashboard?.failureReasons?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={dashboard.failureReasons}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                    <XAxis dataKey="errorCode" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="count" fill="#ef4444" radius={[4, 4, 0, 0]} name="Occurrences" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="No failed payments in this date range." />}
+            </ChartCard>
 
-          <ChartCard title="Average Time per Stage">
-            {dashboard?.avgStageDuration?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={dashboard.avgStageDuration}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="stage" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
-                  <YAxis tick={{ fontSize: 11, fill: axisColor }} label={{ value: "sec", angle: -90, position: "insideLeft", fill: axisColor, fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="avgSeconds" fill="#6366f1" radius={[4, 4, 0, 0]} name="Avg seconds" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="Not enough completed stage transitions yet." />}
-          </ChartCard>
+            <ChartCard title="Average Time per Stage">
+              {dashboard?.avgStageDuration?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={dashboard.avgStageDuration}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                    <XAxis dataKey="stage" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
+                    <YAxis tick={{ fontSize: 11, fill: axisColor }} label={{ value: "sec", angle: -90, position: "insideLeft", fill: axisColor, fontSize: 11 }} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="avgSeconds" fill="#6366f1" radius={[4, 4, 0, 0]} name="Avg seconds" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="Not enough completed stage transitions yet." />}
+            </ChartCard>
 
-          <ChartCard title="Success Rate Over Time">
-            {dashboard?.successRateOverTime?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={dashboard.successRateOverTime}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: axisColor }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: axisColor }} unit="%" />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Line type="monotone" dataKey="successRate" stroke="#22c55e" strokeWidth={2} dot={false} name="Success rate" />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="No terminal payments in this date range yet." />}
-          </ChartCard>
+            <ChartCard title="Success Rate Over Time">
+              {dashboard?.successRateOverTime?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={dashboard.successRateOverTime}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: axisColor }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: axisColor }} unit="%" />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Line type="monotone" dataKey="successRate" stroke="#22c55e" strokeWidth={2} dot={false} name="Success rate" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="No terminal payments in this date range yet." />}
+            </ChartCard>
 
-          <ChartCard title="Currency Breakdown">
-            {dashboard?.currencyBreakdown?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={dashboard.currencyBreakdown}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="currency" tick={{ fontSize: 11, fill: axisColor }} />
-                  <YAxis tick={{ fontSize: 11, fill: axisColor }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="totalAmount" radius={[4, 4, 0, 0]} name="Total amount">
-                    {dashboard.currencyBreakdown.map((entry, index) => (
-                      <Cell key={entry.currency} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="No currency data in this date range yet." />}
-          </ChartCard>
+            <ChartCard title="Currency Breakdown">
+              {dashboard?.currencyBreakdown?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={dashboard.currencyBreakdown}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                    <XAxis dataKey="currency" tick={{ fontSize: 11, fill: axisColor }} />
+                    <YAxis tick={{ fontSize: 11, fill: axisColor }} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="totalAmount" radius={[4, 4, 0, 0]} name="Total amount">
+                      {dashboard.currencyBreakdown.map((entry, index) => (
+                        <Cell key={entry.currency} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="No currency data in this date range yet." />}
+            </ChartCard>
 
-          <ChartCard title="Top Senders">
-            {dashboard?.topSenders?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={dashboard.topSenders}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="accountNumber" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Payments sent" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="No sender activity in this date range yet." />}
-          </ChartCard>
+            <ChartCard title="Top Senders">
+              {dashboard?.topSenders?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={dashboard.topSenders}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                    <XAxis dataKey="accountNumber" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Payments sent" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="No sender activity in this date range yet." />}
+            </ChartCard>
 
-          <ChartCard title="Top Receivers">
-            {dashboard?.topReceivers?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={dashboard.topReceivers}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="accountNumber" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="count" fill="#22c55e" radius={[4, 4, 0, 0]} name="Payments received" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="No receiver activity in this date range yet." />}
-          </ChartCard>
+            <ChartCard title="Top Receivers">
+              {dashboard?.topReceivers?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={dashboard.topReceivers}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                    <XAxis dataKey="accountNumber" tick={{ fontSize: 10, fill: axisColor }} interval={0} angle={-20} textAnchor="end" height={50} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="count" fill="#22c55e" radius={[4, 4, 0, 0]} name="Payments received" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="No receiver activity in this date range yet." />}
+            </ChartCard>
 
-          <ChartCard title="Volume by Hour of Day">
-            {dashboard?.volumeByHour?.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={dashboard.volumeByHour}>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="hour" tick={{ fontSize: 11, fill: axisColor }} tickFormatter={(h) => `${h}:00`} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
-                  <Tooltip contentStyle={tooltipStyle} labelFormatter={(h) => `${h}:00`} />
-                  <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Payments" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <ChartPlaceholder message="No hourly data in this date range yet." />}
-          </ChartCard>
+            <ChartCard title="Volume by Hour of Day">
+              {dashboard?.volumeByHour?.length ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={dashboard.volumeByHour}>
+                    <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                    <XAxis dataKey="hour" tick={{ fontSize: 11, fill: axisColor }} tickFormatter={(h) => `${h}:00`} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: axisColor }} />
+                    <Tooltip contentStyle={tooltipStyle} labelFormatter={(h) => `${h}:00`} />
+                    <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Payments" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : <ChartPlaceholder message="No hourly data in this date range yet." />}
+            </ChartCard>
 
-        </div>
+          </div>
         )}
 
 

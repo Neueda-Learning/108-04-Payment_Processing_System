@@ -23,14 +23,16 @@ public class StatsController {
     }
 
     @GetMapping("/payments")
-    public ResponseEntity<PaymentStatsResponse> getPaymentStats() {
-        return ResponseEntity.ok(paymentService.getPaymentStats());
+    public ResponseEntity<PaymentStatsResponse> getPaymentStats(
+            @RequestParam(required = false) String account) {
+        return ResponseEntity.ok(paymentService.getPaymentStats(account));
     }
 
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardStatsResponse> getDashboardStats(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return ResponseEntity.ok(paymentService.getDashboardStats(from, to));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String account) {
+        return ResponseEntity.ok(paymentService.getDashboardStats(from, to, account));
     }
 }

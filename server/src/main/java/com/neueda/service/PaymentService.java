@@ -35,10 +35,22 @@ public interface PaymentService {
     PaymentStatsResponse getPaymentStats();
 
     /**
+     * Like getPaymentStats() but scoped to payments sent or received by the given account.
+     * Pass null to get global (all-account) stats.
+     */
+    PaymentStatsResponse getPaymentStats(String accountNumber);
+
+    /**
      * Aggregated analytics for the dashboard charts, optionally bounded by a date range.
      * When either bound is omitted, defaults to the last 30 days (inclusive).
      */
     DashboardStatsResponse getDashboardStats(LocalDate from, LocalDate to);
+
+    /**
+     * Like getDashboardStats() but scoped to a single account (sent or received).
+     * Pass null for accountNumber to get global stats.
+     */
+    DashboardStatsResponse getDashboardStats(LocalDate from, LocalDate to, String accountNumber);
 
     /**
      * Fail a payment with a specific error code and optional technical reason.

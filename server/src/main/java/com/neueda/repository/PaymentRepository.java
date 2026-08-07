@@ -14,6 +14,12 @@ public interface PaymentRepository {
 
         List<Payment> findAllByStatus(String status);
 
+        /**
+         * Find all payments where the given account is either the sender or receiver.
+         * Used to scope stats/dashboard data to a single customer.
+         */
+        List<Payment> findAllByAccount(String accountNumber);
+
         void updateStatus(Long id, String status);
         
         void updatePayment(Payment payment);

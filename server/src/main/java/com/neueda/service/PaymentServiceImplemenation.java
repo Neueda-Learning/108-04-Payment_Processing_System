@@ -353,9 +353,17 @@ public class PaymentServiceImplemenation implements PaymentService {
         return paymentRepository.findByIdempotencyKey(key);
     }
 
-        @Override
-        public PaymentStatsResponse getPaymentStats() {
-        List<Payment> payments = paymentRepository.findAll();
+    @Override
+    public PaymentStatsResponse getPaymentStats() {
+        return getPaymentStats(null);
+    }
+
+    @Override
+    public PaymentStatsResponse getPaymentStats(String accountNumber) {
+        List<Payment> payments = (accountNumber != null && !accountNumber.isBlank())
+                ? paymentRepository.findAllByAccount(accountNumber)
+                : paymentRepository.findAll();
+
         long totalPayments = payments.size();
         long successfulPayments = payments.stream()
             .filter(payment -> PaymentStatus.COMPLETED.name().equals(payment.getStatus()))
@@ -364,18 +372,22 @@ public class PaymentServiceImplemenation implements PaymentService {
             .filter(payment -> PaymentStatus.FAILED.name().equals(payment.getStatus()))
             .count();
 
-        BigDecimal totalAmount = payments.stream()
+        List<Payment> completedPayments = payments.stream()
+            .filter(payment -> PaymentStatus.COMPLETED.name().equals(payment.getStatus()))
+            .toList();
+
+        BigDecimal totalAmount = completedPayments.stream()
             .map(Payment::getAmount)
-            .filter(amount -> amount != null)
+            .filter(Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         double successRate = totalPayments == 0 ? 0.0 : (successfulPayments * 100.0) / totalPayments;
         double failureRate = totalPayments == 0 ? 0.0 : (failedPayments * 100.0) / totalPayments;
 
-        BigDecimal averageAmount = totalPayments == 0 ? BigDecimal.ZERO
-            : totalAmount.divide(BigDecimal.valueOf(totalPayments), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal averageAmount = successfulPayments == 0 ? BigDecimal.ZERO
+            : totalAmount.divide(BigDecimal.valueOf(successfulPayments), 2, java.math.RoundingMode.HALF_UP);
 
-        BigDecimal largestAmount = payments.stream()
+        BigDecimal largestAmount = completedPayments.stream()
             .map(Payment::getAmount)
             .filter(Objects::nonNull)
             .max(BigDecimal::compareTo)
@@ -391,7 +403,7 @@ public class PaymentServiceImplemenation implements PaymentService {
             averageAmount,
             largestAmount
         );
-        }
+    }
 
     private static final List<String[]> STAGE_PAIRS = List.of(
             new String[] {"CREATED", "VALIDATED"},
@@ -402,10 +414,19 @@ public class PaymentServiceImplemenation implements PaymentService {
 
     @Override
     public DashboardStatsResponse getDashboardStats(LocalDate from, LocalDate to) {
+        return getDashboardStats(from, to, null);
+    }
+
+    @Override
+    public DashboardStatsResponse getDashboardStats(LocalDate from, LocalDate to, String accountNumber) {
         LocalDate resolvedTo = to != null ? to : LocalDate.now();
         LocalDate resolvedFrom = from != null ? from : resolvedTo.minusDays(29);
 
-        List<Payment> inRange = paymentRepository.findAll().stream()
+        List<Payment> basePayments = (accountNumber != null && !accountNumber.isBlank())
+                ? paymentRepository.findAllByAccount(accountNumber)
+                : paymentRepository.findAll();
+
+        List<Payment> inRange = basePayments.stream()
                 .filter(p -> p.getCreatedAt() != null)
                 .filter(p -> {
                     LocalDate day = p.getCreatedAt().toLocalDate();
@@ -497,6 +518,7 @@ public class PaymentServiceImplemenation implements PaymentService {
 
     private static BigDecimal sumAmounts(List<Payment> payments) {
         return payments.stream()
+                .filter(p -> PaymentStatus.COMPLETED.name().equals(p.getStatus()))
                 .map(Payment::getAmount)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
