@@ -233,6 +233,7 @@ function FAQPage() {
 
 
           <button
+            onClick={() => window.dispatchEvent(new CustomEvent("open-chatbot"))}
             className="
               bg-red-600
               text-white
@@ -243,6 +244,7 @@ function FAQPage() {
               transition
               w-full
               sm:w-auto
+              cursor-pointer
             "
           >
             Contact Support

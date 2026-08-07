@@ -433,7 +433,7 @@ function StatsPage() {
               ) : <ChartPlaceholder message="No currency data in this date range yet." />}
             </ChartCard>
 
-            <ChartCard title="Top Senders">
+            <ChartCard title={account ? "Top Senders (Who Sent to You)" : "Top Senders"}>
               {dashboard?.topSenders?.length ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={dashboard.topSenders}>
@@ -447,7 +447,7 @@ function StatsPage() {
               ) : <ChartPlaceholder message="No sender activity in this date range yet." />}
             </ChartCard>
 
-            <ChartCard title="Top Receivers">
+            <ChartCard title={account ? "Top Receivers (Who You Sent To)" : "Top Receivers"}>
               {dashboard?.topReceivers?.length ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={dashboard.topReceivers}>

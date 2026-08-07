@@ -486,23 +486,48 @@ public class PaymentServiceImplemenation implements PaymentService {
         List<StageDuration> avgStageDuration = computeAvgStageDurations(inRange);
         double avgTotalProcessingSeconds = computeAvgTotalProcessingSeconds(inRange);
 
-        List<AccountVolume> topSenders = inRange.stream()
-                .filter(p -> p.getSourceAccount() != null)
-                .collect(Collectors.groupingBy(Payment::getSourceAccount))
-                .entrySet().stream()
-                .map(e -> new AccountVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
-                .sorted(Comparator.comparingLong(AccountVolume::count).reversed())
-                .limit(5)
-                .toList();
+        List<AccountVolume> topSenders;
+        List<AccountVolume> topReceivers;
 
-        List<AccountVolume> topReceivers = inRange.stream()
-                .filter(p -> p.getDestinationAccount() != null)
-                .collect(Collectors.groupingBy(Payment::getDestinationAccount))
-                .entrySet().stream()
-                .map(e -> new AccountVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
-                .sorted(Comparator.comparingLong(AccountVolume::count).reversed())
-                .limit(5)
-                .toList();
+        if (accountNumber != null && !accountNumber.isBlank()) {
+            topSenders = inRange.stream()
+                    .filter(p -> accountNumber.equalsIgnoreCase(p.getDestinationAccount()))
+                    .filter(p -> p.getSourceAccount() != null && !accountNumber.equalsIgnoreCase(p.getSourceAccount()))
+                    .collect(Collectors.groupingBy(Payment::getSourceAccount))
+                    .entrySet().stream()
+                    .map(e -> new AccountVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
+                    .sorted(Comparator.comparingLong(AccountVolume::count).reversed())
+                    .limit(5)
+                    .toList();
+
+            topReceivers = inRange.stream()
+                    .filter(p -> accountNumber.equalsIgnoreCase(p.getSourceAccount()))
+                    .filter(p -> p.getDestinationAccount() != null && !accountNumber.equalsIgnoreCase(p.getDestinationAccount()))
+                    .collect(Collectors.groupingBy(Payment::getDestinationAccount))
+                    .entrySet().stream()
+                    .map(e -> new AccountVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
+                    .sorted(Comparator.comparingLong(AccountVolume::count).reversed())
+                    .limit(5)
+                    .toList();
+        } else {
+            topSenders = inRange.stream()
+                    .filter(p -> p.getSourceAccount() != null)
+                    .collect(Collectors.groupingBy(Payment::getSourceAccount))
+                    .entrySet().stream()
+                    .map(e -> new AccountVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
+                    .sorted(Comparator.comparingLong(AccountVolume::count).reversed())
+                    .limit(5)
+                    .toList();
+
+            topReceivers = inRange.stream()
+                    .filter(p -> p.getDestinationAccount() != null)
+                    .collect(Collectors.groupingBy(Payment::getDestinationAccount))
+                    .entrySet().stream()
+                    .map(e -> new AccountVolume(e.getKey(), e.getValue().size(), sumAmounts(e.getValue())))
+                    .sorted(Comparator.comparingLong(AccountVolume::count).reversed())
+                    .limit(5)
+                    .toList();
+        }
 
         List<HourlyVolume> volumeByHour = inRange.stream()
                 .collect(Collectors.groupingBy(p -> p.getCreatedAt().getHour()))

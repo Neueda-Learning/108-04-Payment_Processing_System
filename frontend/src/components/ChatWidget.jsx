@@ -15,6 +15,12 @@ function ChatWidget() {
     }
   }, [messages, loading, chatOpen]);
 
+  useEffect(() => {
+    const handleOpenChat = () => setChatOpen(true);
+    window.addEventListener("open-chatbot", handleOpenChat);
+    return () => window.removeEventListener("open-chatbot", handleOpenChat);
+  }, []);
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
