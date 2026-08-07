@@ -29,6 +29,12 @@ System.out.println("Received account creation request: " + account);
     }
 
 
+    // Get all accounts
+    @GetMapping
+    public ResponseEntity<java.util.List<Account>> getAllAccounts() {
+        return ResponseEntity.ok(accountService.getAllAccounts());
+    }
+
     // Get account by account number
     @GetMapping("/{accountNumber}")
     public ResponseEntity<Account> getAccount(

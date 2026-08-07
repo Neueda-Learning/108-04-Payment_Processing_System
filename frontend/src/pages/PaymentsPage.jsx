@@ -18,11 +18,12 @@ function PaymentsPage() {
   const [senderCurrency, setSenderCurrency] = useState("USD"); // Sender's account currency
   const [receiverInfo, setReceiverInfo] = useState(null); // { name, currency }
   const [receiverStatus, setReceiverStatus] = useState("idle"); // idle | loading | found | not_found
+  const [availablePayees, setAvailablePayees] = useState([]); // Registered contacts / payees
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const debounceRef = useRef(null);
 
-  // Fetch sender's account details to get currency
+  // Fetch sender's account details & available payees
   useEffect(() => {
     const sourceAccount = localStorage.getItem("account");
     if (sourceAccount) {
@@ -35,6 +36,15 @@ function PaymentsPage() {
           setSenderCurrency("USD");
         });
     }
+
+    axios.get(`${API_BASE}/accounts`)
+      .then(res => {
+        if (Array.isArray(res.data)) {
+          const filtered = res.data.filter(a => a.accountNumber !== sourceAccount);
+          setAvailablePayees(filtered);
+        }
+      })
+      .catch(err => console.error("Failed to load payees list:", err));
   }, []);
 
   // Look up receiver name when account number changes
@@ -133,7 +143,28 @@ function PaymentsPage() {
 
           {/* Destination account + receiver name */}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">To Account</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">To Account</label>
+              {availablePayees.length > 0 && (
+                <select
+                  aria-label="Select from saved payees"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setPayment((prev) => ({ ...prev, destinationAccount: e.target.value }));
+                    }
+                  }}
+                  value={payment.destinationAccount}
+                  className="text-xs text-red-600 dark:text-red-400 font-semibold bg-transparent border-0 outline-none cursor-pointer hover:underline"
+                >
+                  <option value="" className="text-gray-700 dark:text-gray-200">Select Payee...</option>
+                  {availablePayees.map((acc) => (
+                    <option key={acc.accountNumber} value={acc.accountNumber} className="text-gray-900 dark:text-gray-100">
+                      {acc.accountHolderName} ({acc.accountNumber})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
             <div className="relative mt-2">
               <input
                 type="text"
@@ -161,9 +192,33 @@ function PaymentsPage() {
               </div>
             </div>
 
+            {/* Frequent Payees Chips */}
+            {availablePayees.length > 0 && (
+              <div className="mt-2.5">
+                <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500 mb-1.5">Frequent Payees:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {availablePayees.slice(0, 4).map((acc) => (
+                    <button
+                      key={acc.accountNumber}
+                      type="button"
+                      onClick={() => setPayment((prev) => ({ ...prev, destinationAccount: acc.accountNumber }))}
+                      className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border transition cursor-pointer ${
+                        payment.destinationAccount === acc.accountNumber
+                          ? "bg-red-600 text-white border-red-600 font-medium shadow-sm"
+                          : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-750"
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${payment.destinationAccount === acc.accountNumber ? "bg-white" : "bg-green-500"}`}></span>
+                      {acc.accountHolderName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Receiver card - shown when found */}
             {receiverStatus === "found" && receiverInfo && (
-              <div className="mt-2 flex items-center gap-3 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 px-4 py-3">
+              <div className="mt-2.5 flex items-center gap-3 rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 px-4 py-3">
                 <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-green-600 text-white text-sm font-bold">
                   {receiverInfo.name.charAt(0).toUpperCase()}
                 </div>
@@ -185,17 +240,19 @@ function PaymentsPage() {
           {/* Amount */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Amount</label>
-            <div className="relative mt-2">
-              <span className="absolute left-4 top-3 text-gray-400 dark:text-gray-500 text-sm font-semibold">
-                {senderCurrency || "USD"}
-              </span>
+            <div className="relative mt-2 flex items-center">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                  {senderCurrency || "USD"}
+                </span>
+              </div>
               <input
                 type="number"
                 name="amount"
                 placeholder="0.00"
                 value={payment.amount}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white dark:focus:bg-gray-800 transition"
+                className="w-full pl-14 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white dark:focus:bg-gray-800 transition"
               />
             </div>
           </div>
